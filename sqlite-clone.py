@@ -14,7 +14,7 @@ def createDatabase (dbName):
     try:
         os.mkdir(fullPath)
         print('Database %s created.' % dbName)
-    except OSError as error:
+    except OSError:
         print('!Failed to create database %s because it already exists.' % dbName)
 
 while not quitting:
