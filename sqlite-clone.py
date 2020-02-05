@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import re
 
 def parseInput (input):
     print('parseInput() called with input: ', input)
@@ -22,6 +23,12 @@ quitting = False
 
 dotCommands = {
     '.exit': exitProgram
+}
+
+queryCommand = {
+    'CREATE': {
+        'DATABASE': createDatabase
+    }
 }
 
 while not quitting:
@@ -49,6 +56,11 @@ while not quitting:
         except KeyError:
             print('%s is not a valid command!' % userInput)
     else:
-        if userInput == 'CREATE DATABASE test;':
-            createDatabase('test')
-
+        # strip all trailing whitespace and semicolon
+        userInput = re.sub(r'\s*;*$', '', userInput)
+        tokens = userInput.split(' ')
+        print(tokens)
+        try:
+            queryCommand[tokens[0]][tokens[1]](tokens[2])
+        except KeyError:
+            print('%s is not a valid command!' % userInput)
