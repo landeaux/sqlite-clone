@@ -2,8 +2,6 @@
 
 import os
 
-quitting = False
-
 def parseInput (input):
     print('parseInput() called with input: ', input)
 
@@ -17,12 +15,40 @@ def createDatabase (dbName):
     except OSError:
         print('!Failed to create database %s because it already exists.' % dbName)
 
+def exitProgram ():
+    quit()
+
+quitting = False
+
+dotCommands = {
+    '.exit': exitProgram
+}
+
 while not quitting:
-    userInput = raw_input('> ')
+    userInput = ''
+    queryDone = False
+    dotCommand = False
 
-    if userInput == 'exit':
-        quitting = True
+    while not queryDone:
+        userInput = userInput + raw_input('> ');
+        dotCommand = len(userInput) > 0 and userInput[0] == '.'
 
-    if userInput == 'CREATE DATABASE test':
-        createDatabase('test')
+        if dotCommand:
+            break
+        else:
+            queryDone = len(userInput) > 0 and userInput[-1] == ';'
+            if not queryDone and len(userInput) > 0:
+                userInput = userInput + ' '
+
+        print('userInput:', userInput)
+        print('queryDone:', queryDone)
+
+    if dotCommand:
+        try:
+            dotCommands[userInput]()
+        except KeyError:
+            print('%s is not a valid command!' % userInput)
+    else:
+        if userInput == 'CREATE DATABASE test;':
+            createDatabase('test')
 
