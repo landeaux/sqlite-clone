@@ -8,12 +8,13 @@ def parseInput (input):
     print('parseInput() called with input: ', input)
 
 def createDatabase (dbName):
-    print('createDatabase() called with dbName: ', dbName)
     parentPath = os.getcwd()
     directory = dbName
     fullPath = os.path.join(parentPath, directory)
-    os.mkdir(fullPath)
-    print('database created at ', fullPath)
+    try:
+        os.mkdir(fullPath)
+    except OSError as error:
+        print(error)
 
 while not quitting:
     userInput = raw_input('> ')
