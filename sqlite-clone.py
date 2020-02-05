@@ -19,16 +19,24 @@ def createDatabase (dbName):
 def exitProgram ():
     quit()
 
+def create (queryString):
+    resourceTypes = {
+        'DATABASE': createDatabase
+    }
+    resourceType = queryString.split(' ', 1)[0]
+    queryString = queryString.split(' ', 1)[1]
+    print('resourceType: %s' % resourceType)
+    print('queryString: %s' % queryString)
+    resourceTypes[resourceType](queryString)
+
 quitting = False
 
 dotCommands = {
     '.exit': exitProgram
 }
 
-queryCommand = {
-    'CREATE': {
-        'DATABASE': createDatabase
-    }
+queryCommands = {
+    'CREATE': create
 }
 
 while not quitting:
@@ -58,12 +66,13 @@ while not quitting:
     else:
         # strip all trailing whitespace and semicolon
         userInput = re.sub(r'\s*;*$', '', userInput)
-        tokens = userInput.split(' ')
-        print(tokens)
-        try:
-            queryCommand[tokens[0]][tokens[1]](tokens[2])
-        except KeyError:
-            print('\'%s\' is not a valid command!' % userInput)
+        if not userInput == '' and not userInput.find(' ') == -1:
+            try:
+                action = userInput.split(' ', 1)[0]
+                queryString = userInput.split(' ', 1)[1]
+                queryCommands[action](queryString)
+            except KeyError:
+                print('\'%s\' is not a valid command!' % userInput)
 
 
 
