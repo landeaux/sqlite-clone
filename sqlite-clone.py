@@ -63,4 +63,7 @@ while not quitting:
         try:
             queryCommand[tokens[0]][tokens[1]](tokens[2])
         except KeyError:
-            print('%s is not a valid command!' % userInput)
+            print('\'%s\' is not a valid command!' % userInput)
+
+
+
