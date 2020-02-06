@@ -98,10 +98,8 @@ queryCommands = {
     'delete': delete
 }
 
-quitting = False
-
 # The main command prompt loop
-while not quitting:
+while True:
     # reset our variables
     userInput = ''
     queryDone = False
