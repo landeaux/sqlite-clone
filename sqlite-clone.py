@@ -19,6 +19,9 @@ def createDatabase (dbName):
 def exitProgram ():
     quit()
 
+def printHelp ():
+    print('.exit                  Exit this program')
+
 def create (queryString):
     resourceTypes = {
         'DATABASE': createDatabase
@@ -32,7 +35,8 @@ def create (queryString):
 quitting = False
 
 dotCommands = {
-    '.exit': exitProgram
+    '.exit': exitProgram,
+    '.help': printHelp
 }
 
 queryCommands = {
@@ -55,24 +59,23 @@ while not quitting:
             if not queryDone and len(userInput) > 0:
                 userInput = userInput + ' '
 
-        print('userInput:', userInput)
-        print('queryDone:', queryDone)
-
     if dotCommand:
         try:
             dotCommands[userInput]()
         except KeyError:
-            print('%s is not a valid command!' % userInput)
+            error = 'Error: unknown command or invalid arguments:  "'
+            error += userInput[1:-1]
+            error += '". Enter ".help" for help'
+            print(error)
     else:
         # strip all trailing whitespace and semicolon
         userInput = re.sub(r'\s*;*$', '', userInput)
-        if not userInput == '' and not userInput.find(' ') == -1:
+        if not userInput == '':
             try:
                 action = userInput.split(' ', 1)[0]
                 queryString = userInput.split(' ', 1)[1]
                 queryCommands[action](queryString)
-            except KeyError:
-                print('\'%s\' is not a valid command!' % userInput)
-
+            except:
+                print('Error: near "%s": syntax error' %action)
 
 
