@@ -126,6 +126,7 @@ while not quitting:
 
     if dotCommand:
         try:
+            userInput = userInput.lower() # make dot-command case insensitive
             dotCommands[userInput]() # try calling the dotCommand function keyed by input
         except KeyError:
             error = 'Error: unknown command or invalid arguments:  "'
