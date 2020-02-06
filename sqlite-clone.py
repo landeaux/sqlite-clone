@@ -34,11 +34,12 @@ def create (queryString):
     queryString -- the remaining query after the CREATE keyword
     """
     resourceTypes = {
-        'DATABASE': createDatabase
+        'database': createDatabase
     }
-    resourceType = queryString.split(' ', 1)[0]
-    queryString = queryString.split(' ', 1)[1]
-    resourceTypes[resourceType](queryString)
+    resourceType = queryString.split(' ', 1)[0] # grab the resource keyword
+    resourceType = resourceType.lower() # convert resource keyword to lowercase
+    queryString = queryString.split(' ', 1)[1] # save the remaining query
+    resourceTypes[resourceType](queryString) # call the appropriate function based on resource
 
 def delete (queryString):
     """
@@ -47,11 +48,12 @@ def delete (queryString):
     queryString -- the remaining query after the DELETE keyword
     """
     resourceTypes = {
-        'DATABASE': deleteDatabase
+        'database': deleteDatabase
     }
-    resourceType = queryString.split(' ', 1)[0]
-    queryString = queryString.split(' ', 1)[1]
-    resourceTypes[resourceType](queryString)
+    resourceType = queryString.split(' ', 1)[0] # grab the resource keyword
+    resourceType = resourceType.lower() # convert resource keyword to lowercase
+    queryString = queryString.split(' ', 1)[1] # save the remaining query
+    resourceTypes[resourceType](queryString) # call the appropriate function based on resource
 
 def createDatabase (dbName):
     """
@@ -59,9 +61,9 @@ def createDatabase (dbName):
 
     dbName -- the name of the database to create
     """
-    parentPath = os.getcwd()
+    parentPath = os.getcwd() # get the current working directory path
     directory = dbName
-    fullPath = os.path.join(parentPath, directory)
+    fullPath = os.path.join(parentPath, directory) # join with dbName to get full path
     try:
         os.mkdir(fullPath)
         print('Database %s created.' % dbName)
@@ -74,10 +76,11 @@ def deleteDatabase (dbName):
 
     dbName -- the name of the database to delete
     """
-    parentPath = os.getcwd()
+    parentPath = os.getcwd() # get the current workgin directory path
     directory = dbName
-    fullPath = os.path.join(parentPath, directory)
+    fullPath = os.path.join(parentPath, directory) # join with dbName to get full path
     try:
+        # recursively remove database (directory) and all tables (files)
         shutil.rmtree(fullPath)
         print('Database %s deleted.' % dbName)
     except OSError:
