@@ -81,7 +81,7 @@ def deleteDatabase (dbName):
         shutil.rmtree(fullPath)
         print('Database %s deleted.' % dbName)
     except OSError:
-        print('!Failed to database %s because it doesn\'t exist.' % dbName)
+        print('!Failed to database %s because it does not exist.' % dbName)
 
 ###################################################################################
 
@@ -91,8 +91,8 @@ dotCommands = {
 }
 
 queryCommands = {
-    'CREATE': create,
-    'DELETE': delete
+    'create': create,
+    'delete': delete
 }
 
 quitting = False
@@ -137,6 +137,7 @@ while not quitting:
         if not userInput == '':
             try:
                 action = userInput.split(' ', 1)[0] # grab the first keyword (action)
+                action = action.lower() # convert the action to lowercase
                 queryString = userInput.split(' ', 1)[1] # store the remaining query for parsing
                 queryCommands[action](queryString) # call the query function keyed by action
             except:
