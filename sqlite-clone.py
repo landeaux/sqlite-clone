@@ -9,6 +9,37 @@ import re # for using regular expressions
 def parseInput (input):
     print('parseInput() called with input: ', input)
 
+############################## dot-command functions ##############################
+
+def exitProgram ():
+    """
+    Exits the program
+    """
+    quit()
+
+def printHelp ():
+    """
+    Prints all of the allowed dot-commands and their function
+    """
+    print('.exit                  Exit this program')
+
+###################################################################################
+
+############################# query command functions #############################
+
+def create (queryString):
+    """
+    Initiates a CREATE command
+
+    queryString -- the remaining query after the CREATE keyword
+    """
+    resourceTypes = {
+        'DATABASE': createDatabase
+    }
+    resourceType = queryString.split(' ', 1)[0]
+    queryString = queryString.split(' ', 1)[1]
+    resourceTypes[resourceType](queryString)
+
 def createDatabase (dbName):
     """
     Creates a database with the given name
@@ -24,34 +55,7 @@ def createDatabase (dbName):
     except OSError:
         print('!Failed to create database %s because it already exists.' % dbName)
 
-def exitProgram ():
-    """
-    Exits the program
-    """
-    quit()
-
-def printHelp ():
-    """
-    Prints all of the allowed dot-commands and their function
-    """
-    print('.exit                  Exit this program')
-
-def create (queryString):
-    """
-    Initiates a CREATE command
-
-    queryString -- the remaining query after the CREATE keyword
-    """
-    resourceTypes = {
-        'DATABASE': createDatabase
-    }
-    resourceType = queryString.split(' ', 1)[0]
-    queryString = queryString.split(' ', 1)[1]
-    print('resourceType: %s' % resourceType)
-    print('queryString: %s' % queryString)
-    resourceTypes[resourceType](queryString)
-
-quitting = False
+###################################################################################
 
 dotCommands = {
     '.exit': exitProgram,
@@ -61,6 +65,8 @@ dotCommands = {
 queryCommands = {
     'CREATE': create
 }
+
+quitting = False
 
 # The main command prompt loop
 while not quitting:
