@@ -3,7 +3,7 @@
 # Programming Assignment 1 - Metadata Management
 # Author: Adam Landis
 
-import os # for writing directories and files
+import os, shutil # for writing directories and files
 import re # for using regular expressions
 
 def parseInput (input):
@@ -40,6 +40,19 @@ def create (queryString):
     queryString = queryString.split(' ', 1)[1]
     resourceTypes[resourceType](queryString)
 
+def delete (queryString):
+    """
+    Initiates a DELETE command
+
+    queryString -- the remaining query after the DELETE keyword
+    """
+    resourceTypes = {
+        'DATABASE': deleteDatabase
+    }
+    resourceType = queryString.split(' ', 1)[0]
+    queryString = queryString.split(' ', 1)[1]
+    resourceTypes[resourceType](queryString)
+
 def createDatabase (dbName):
     """
     Creates a database with the given name
@@ -55,6 +68,21 @@ def createDatabase (dbName):
     except OSError:
         print('!Failed to create database %s because it already exists.' % dbName)
 
+def deleteDatabase (dbName):
+    """
+    Deletes a database with the given name
+
+    dbName -- the name of the database to delete
+    """
+    parentPath = os.getcwd()
+    directory = dbName
+    fullPath = os.path.join(parentPath, directory)
+    try:
+        shutil.rmtree(fullPath)
+        print('Database %s deleted.' % dbName)
+    except OSError:
+        print('!Failed to database %s because it doesn\'t exist.' % dbName)
+
 ###################################################################################
 
 dotCommands = {
@@ -63,7 +91,8 @@ dotCommands = {
 }
 
 queryCommands = {
-    'CREATE': create
+    'CREATE': create,
+    'DELETE': delete
 }
 
 quitting = False
