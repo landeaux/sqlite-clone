@@ -88,10 +88,14 @@ def dropDatabase (dbName):
 
 ###################################################################################
 
-dotCommands = {
+dotCmds = {
     '.exit': exitProgram,
     '.help': printHelp
 }
+
+dotCmdRegex = re.compile('^\.(exit|help)\s*$', re.I)
+
+#^\s*(CREATE|DROP|USE|SELECT|ALTER)(.*);$
 
 queryCommands = {
     'create': create,
@@ -103,16 +107,17 @@ while True:
     # reset our variables
     userInput = ''
     queryDone = False
-    dotCommand = False
+    isDotCmd = False
 
     while not queryDone:
         # always append prior user input for multiline support
         userInput += input('> ');
 
         # determine if the input is a dot-command
-        dotCommand = len(userInput) > 0 and userInput[0] == '.'
+        #isDotCmd = len(userInput) > 0 and userInput[0] == '.'
+        isDotCmd = dotCmdRegex.match(userInput) != None
 
-        if dotCommand:
+        if isDotCmd:
             break # dot-commands aren't multiline/multi-keyword, so bail
         else:
             # we're done collecting input if input is non-empty and last token is a ';'
@@ -122,10 +127,10 @@ while True:
             if not queryDone and len(userInput) > 0:
                 userInput += ' '
 
-    if dotCommand:
+    if isDotCmd:
         try:
             userInput = userInput.lower() # make dot-command case insensitive
-            dotCommands[userInput]() # try calling the dotCommand function keyed by input
+            dotCmds[userInput]() # try calling the dotCmds function keyed by input
         except KeyError:
             error = 'Error: unknown command or invalid arguments:  "'
             error += userInput[1:-1] # strip off the '.'
