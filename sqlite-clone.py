@@ -107,7 +107,7 @@ while True:
 
     while not queryDone:
         # always append prior user input for multiline support
-        userInput += raw_input('> ');
+        userInput += input('> ');
 
         # determine if the input is a dot-command
         dotCommand = len(userInput) > 0 and userInput[0] == '.'
