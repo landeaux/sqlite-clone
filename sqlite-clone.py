@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Programming Assignment 1 - Metadata Management
 # Author: Adam Landis
