@@ -41,14 +41,14 @@ def create (queryString):
     queryString = queryString.split(' ', 1)[1] # save the remaining query
     resourceTypes[resourceType](queryString) # call the appropriate function based on resource
 
-def delete (queryString):
+def drop (queryString):
     """
-    Initiates a DELETE command
+    Initiates a DROP command
 
-    queryString -- the remaining query after the DELETE keyword
+    queryString -- the remaining query after the DROP keyword
     """
     resourceTypes = {
-        'database': deleteDatabase
+        'database': dropDatabase
     }
     resourceType = queryString.split(' ', 1)[0] # grab the resource keyword
     resourceType = resourceType.lower() # convert resource keyword to lowercase
@@ -70,11 +70,11 @@ def createDatabase (dbName):
     except OSError:
         print('!Failed to create database %s because it already exists.' % dbName)
 
-def deleteDatabase (dbName):
+def dropDatabase (dbName):
     """
-    Deletes a database with the given name
+    Drops a database with the given name
 
-    dbName -- the name of the database to delete
+    dbName -- the name of the database to drop
     """
     parentPath = os.getcwd() # get the current workgin directory path
     directory = dbName
@@ -82,7 +82,7 @@ def deleteDatabase (dbName):
     try:
         # recursively remove database (directory) and all tables (files)
         shutil.rmtree(fullPath)
-        print('Database %s deleted.' % dbName)
+        print('Database %s dropped.' % dbName)
     except OSError:
         print('!Failed to database %s because it does not exist.' % dbName)
 
@@ -95,7 +95,7 @@ dotCommands = {
 
 queryCommands = {
     'create': create,
-    'delete': delete
+    'drop': drop
 }
 
 # The main command prompt loop
