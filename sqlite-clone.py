@@ -65,13 +65,23 @@ def drop (queryString):
     resourceType = resourceType.lower() # convert resource keyword to lowercase
     queryString = queryString.split(' ', 1)[1] # save the remaining query
     resourceTypes[resourceType](queryString) # call the appropriate function based on resource
+
 def use (queryString):
     """
     Initiates a USE command
 
     queryString -- the remaining query after the USE keyword
     """
-    print('use function called with queryString: %s' %queryString)
+    regex = re.compile('^[a-z0-9_-]+$', re.I)
+    match = regex.match(queryString)
+    if match != None:
+        dbName = queryString
+        dbPath = os.path.join(DB_DIR, dbName)
+        if os.path.isdir(dbPath):
+            activeDb = dbName
+            print('Using database %s.' %dbName)
+        else:
+            print('!Failed to use database %s because it does not exist.' %dbName)
 
 def createDatabase (dbName):
     """
@@ -85,7 +95,7 @@ def createDatabase (dbName):
         os.mkdir(dbPath)
         print('Database %s created.' % dbName)
     except OSError:
-        print('!Failed to create database %s because it already exists.' % dbName)
+        print('!Failed to create database %s because it already exists.' %dbName)
 
 def dropDatabase (dbName):
     """
@@ -100,7 +110,7 @@ def dropDatabase (dbName):
         shutil.rmtree(dbPath)
         print('Database %s dropped.' % dbName)
     except OSError:
-        print('!Failed to database %s because it does not exist.' % dbName)
+        print('!Failed to database %s because it does not exist.' %dbName)
 
 ###################################################################################
 
