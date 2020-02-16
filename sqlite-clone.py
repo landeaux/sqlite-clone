@@ -111,6 +111,10 @@ while True:
         # always append prior user input for multiline support
         userInput += input('> ');
 
+        # ignore comments
+        if userInput[0:2] == '--':
+            userInput = ''
+
         # determine if the input is a dot-command
         isDotCmd = dotCmdRegex.match(userInput) != None
 
