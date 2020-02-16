@@ -93,9 +93,7 @@ dotCmds = {
     '.help': printHelp
 }
 
-dotCmdRegex = re.compile('^\.(exit|help)\s*$', re.I)
-
-#^\s*(CREATE|DROP|USE|SELECT|ALTER)(.*);$
+dotCmdRegex = re.compile('^\.([a-z]*) *$', re.I)
 
 queryCommands = {
     'create': create,
@@ -114,13 +112,13 @@ while True:
         userInput += input('> ');
 
         # determine if the input is a dot-command
-        #isDotCmd = len(userInput) > 0 and userInput[0] == '.'
         isDotCmd = dotCmdRegex.match(userInput) != None
 
         if isDotCmd:
             break # dot-commands aren't multiline/multi-keyword, so bail
         else:
             # we're done collecting input if input is non-empty and last token is a ';'
+            userInput = userInput.strip() # strip all leading and trailing whitespace
             queryDone = len(userInput) > 0 and userInput[-1] == ';'
 
             # if no ';', but input is non-empty, append a ' ' to delimit further input
@@ -130,24 +128,27 @@ while True:
     if isDotCmd:
         try:
             userInput = userInput.lower() # make dot-command case insensitive
-            dotCmds[userInput]() # try calling the dotCmds function keyed by input
+            dotCmds[userInput]() # try calling the dotCmds function keyed by userInput
         except KeyError:
             error = 'Error: unknown command or invalid arguments:  "'
-            error += userInput[1:-1] # strip off the '.'
+            error += userInput[1:] # strip off the '.'
             error += '". Enter ".help" for help'
             print(error)
     else:
-        # strip all trailing whitespace and semicolon
-        userInput = re.sub(r'\s*;*$', '', userInput)
+        regex = re.compile('^ *(CREATE|DROP|USE|SELECT|ALTER){0,1} *([^;]*)(;)[ ;]*$', re.I)
 
-        # if stripping trailing whitespace and semicolon still leaves us with input
-        if not userInput == '':
+        # parse the input into groups
+        parsedInput = regex.match(userInput).groups()
+
+        # strip all elements which are None or ''
+        parsedInput = list(filter(lambda x: x != None and x != '', parsedInput))
+        print(parsedInput)
+        if parsedInput[0] != ';':
             try:
-                action = userInput.split(' ', 1)[0] # grab the first keyword (action)
-                action = action.lower() # convert the action to lowercase
-                queryString = userInput.split(' ', 1)[1] # store the remaining query for parsing
-                queryCommands[action](queryString) # call the query function keyed by action
-            except:
-                print('Error: near "%s": syntax error' %action)
-
-
+                print(parsedInput)
+                action = parsedInput[0].lower()
+                queryCommands[action](parsedInput[1])
+            #except AttributeError:
+            #    print('no groups')
+            except IndexError:
+                print('invalid command %s' % action)
