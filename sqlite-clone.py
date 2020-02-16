@@ -82,6 +82,8 @@ def use (queryString):
             print('Using database %s.' %dbName)
         else:
             print('!Failed to use database %s because it does not exist.' %dbName)
+    else:
+        print('Error: syntax error')
 
 def createDatabase (dbName):
     """
