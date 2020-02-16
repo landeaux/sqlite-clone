@@ -135,20 +135,18 @@ while True:
             error += '". Enter ".help" for help'
             print(error)
     else:
-        regex = re.compile('^ *(CREATE|DROP|USE|SELECT|ALTER){0,1} *([^;]*)(;)[ ;]*$', re.I)
+        regex = re.compile('^(CREATE|DROP|USE|SELECT|ALTER) *([^;]*)[ ;]*|^[ ;]*(;)$', re.I)
 
-        # parse the input into groups
-        parsedInput = regex.match(userInput).groups()
+        try:
+            # parse the input into groups
+            parsedInput = regex.match(userInput).groups()
 
-        # strip all elements which are None or ''
-        parsedInput = list(filter(lambda x: x != None and x != '', parsedInput))
-        print(parsedInput)
-        if parsedInput[0] != ';':
-            try:
-                print(parsedInput)
+            # strip all elements which are None or ''          
+            parsedInput = list(filter(lambda x: x != None and x != '', parsedInput))
+
+            if parsedInput[0] != ';':
                 action = parsedInput[0].lower()
                 queryCommands[action](parsedInput[1])
-            #except AttributeError:
-            #    print('no groups')
-            except IndexError:
-                print('invalid command %s' % action)
+        except:
+            print('Error: syntax error')
+
