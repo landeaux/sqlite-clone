@@ -93,12 +93,11 @@ def dropDatabase (dbName):
 
     dbName -- the name of the database to drop
     """
-    parentPath = os.getcwd() # get the current workgin directory path
-    directory = dbName
-    fullPath = os.path.join(parentPath, directory) # join with dbName to get full path
+    dbPath = os.path.join(DB_DIR, dbName) # create the path to the new database
+
     try:
         # recursively remove database (directory) and all tables (files)
-        shutil.rmtree(fullPath)
+        shutil.rmtree(dbPath)
         print('Database %s dropped.' % dbName)
     except OSError:
         print('!Failed to database %s because it does not exist.' % dbName)
