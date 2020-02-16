@@ -47,10 +47,15 @@ def create (queryString):
     resourceTypes = {
         'database': createDatabase
     }
-    resourceType = queryString.split(' ', 1)[0] # grab the resource keyword
-    resourceType = resourceType.lower() # convert resource keyword to lowercase
-    queryString = queryString.split(' ', 1)[1] # save the remaining query
-    resourceTypes[resourceType](queryString) # call the appropriate function based on resource
+    print('create called with queryString: %s' %queryString)
+    regex = re.compile('^(DATABASE|TABLE) *(.+)$', re.I)
+    try:
+        parsedQuery = regex.match(queryString).groups()
+        resourceType = parsedQuery[0].lower() # grab the resource keyword
+        queryString = parsedQuery[1] # save the remaining query
+        resourceTypes[resourceType](queryString) # call the appropriate function based on resource
+    except:
+        print('Error: syntax error')
 
 def drop (queryString):
     """
