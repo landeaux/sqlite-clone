@@ -6,6 +6,17 @@
 import os, shutil # for writing directories and files
 import re # for using regular expressions
 
+DB_DIR = 'dbs'
+INIT_DB = 'main'
+
+def init ():
+    dbPath = os.path.join(DB_DIR, INIT_DB)
+    if not os.path.isdir(DB_DIR):
+        os.makedirs(dbPath)
+    else:
+        if not os.path.isdir(dbPath):
+            os.mkdir(dbPath)
+
 def parseInput (input):
     print('parseInput() called with input: ', input)
 
@@ -54,6 +65,13 @@ def drop (queryString):
     resourceType = resourceType.lower() # convert resource keyword to lowercase
     queryString = queryString.split(' ', 1)[1] # save the remaining query
     resourceTypes[resourceType](queryString) # call the appropriate function based on resource
+def use (queryString):
+    """
+    Initiates a USE command
+
+    queryString -- the remaining query after the USE keyword
+    """
+    print('use function called with queryString: %s' %queryString)
 
 def createDatabase (dbName):
     """
@@ -61,11 +79,10 @@ def createDatabase (dbName):
 
     dbName -- the name of the database to create
     """
-    parentPath = os.getcwd() # get the current working directory path
-    directory = dbName
-    fullPath = os.path.join(parentPath, directory) # join with dbName to get full path
+    dbPath = os.path.join(DB_DIR, dbName) # create the path to the new database 
+
     try:
-        os.mkdir(fullPath)
+        os.mkdir(dbPath)
         print('Database %s created.' % dbName)
     except OSError:
         print('!Failed to create database %s because it already exists.' % dbName)
@@ -97,8 +114,12 @@ dotCmdRegex = re.compile('^\.([a-z]*) *$', re.I)
 
 queryCommands = {
     'create': create,
-    'drop': drop
+    'drop': drop,
+    'use': use
 }
+
+init() # create initial directory structure
+activeDb = 'main' # set the initial active database to 'main'
 
 # The main command prompt loop
 while True:
