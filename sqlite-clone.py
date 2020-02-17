@@ -10,6 +10,7 @@ DB_DIR = 'dbs'
 INIT_DB = 'main'
 
 def init ():
+    global DB_DIR, INIT_DB
     dbPath = os.path.join(DB_DIR, INIT_DB)
     if not os.path.isdir(DB_DIR):
         os.makedirs(dbPath)
@@ -81,6 +82,7 @@ def use (queryString):
 
     queryString -- the remaining query after the USE keyword
     """
+    global DB_DIR, activeDb
     regex = re.compile('^[a-z0-9_-]+$', re.I)
     match = regex.match(queryString)
     if match != None:
@@ -100,6 +102,7 @@ def createDatabase (dbName):
 
     dbName -- the name of the database to create
     """
+    global DB_DIR
     dbPath = os.path.join(DB_DIR, dbName) # create the path to the new database 
 
     try:
@@ -114,6 +117,7 @@ def createTable (tblName):
 
     tblName -- the name of the table to create
     """
+    global DB_DIR, activeDb
     tblPath = os.path.join(DB_DIR, activeDb, tblName) # get the path to the active database
 
     try:
@@ -128,6 +132,7 @@ def dropDatabase (dbName):
 
     dbName -- the name of the database to drop
     """
+    global DB_DIR
     dbPath = os.path.join(DB_DIR, dbName) # create the path to the new database
 
     try:
