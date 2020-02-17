@@ -45,7 +45,8 @@ def create (queryString):
     queryString -- the remaining query after the CREATE keyword
     """
     resourceTypes = {
-        'database': createDatabase
+        'database': createDatabase,
+        'table': createTable
     }
     regex = re.compile('^(DATABASE|TABLE) *(.+)$', re.I)
     try:
@@ -106,6 +107,20 @@ def createDatabase (dbName):
         print('Database %s created.' % dbName)
     except OSError:
         print('!Failed to create database %s because it already exists.' %dbName)
+
+def createTable (tblName):
+    """
+    Creates a table with the given name
+
+    tblName -- the name of the table to create
+    """
+    tblPath = os.path.join(DB_DIR, activeDb, tblName) # get the path to the active database
+
+    try:
+        os.mknod(tblPath);
+        print('Table %s created.' %tblName)
+    except OSError:
+        print('!Failed to create table %s because it already exists.' %tblName)
 
 def dropDatabase (dbName):
     """
