@@ -3,199 +3,209 @@
 # Programming Assignment 1 - Metadata Management
 # Author: Adam Landis
 
-import os, shutil # for writing directories and files
-import re # for using regular expressions
+import os  # for writing directories and files
+import shutil  # for writing directories and files
+import re  # for using regular expressions
 
 DB_DIR = 'dbs'
 INIT_DB = 'main'
 
-def init ():
+
+def init():
     global DB_DIR, INIT_DB
-    dbPath = os.path.join(DB_DIR, INIT_DB)
+    db_path = os.path.join(DB_DIR, INIT_DB)
     if not os.path.isdir(DB_DIR):
-        os.makedirs(dbPath)
+        os.makedirs(db_path)
     else:
-        if not os.path.isdir(dbPath):
-            os.mkdir(dbPath)
+        if not os.path.isdir(db_path):
+            os.mkdir(db_path)
 
-def parseInput (input):
-    print('parseInput() called with input: ', input)
 
-############################## dot-command functions ##############################
+# dot-command functions
 
-def exitProgram ():
+def exit_program():
     """
     Exits the program
     """
     quit()
 
-def printHelp ():
+
+def print_help():
     """
     Prints all of the allowed dot-commands and their function
     """
     print('.exit                  Exit this program')
 
-###################################################################################
 
-############################# query command functions #############################
+# query command functions
 
-def create (queryString):
+def create(query_string):
     """
     Initiates a CREATE command
 
     queryString -- the remaining query after the CREATE keyword
     """
-    resourceTypes = {
-        'database': createDatabase,
-        'table': createTable
+    resource_types = {
+        'database': create_database,
+        'table': create_table
     }
-    regex = re.compile('^(DATABASE|TABLE) *(.+)$', re.I)
+    create_regex = re.compile('^(DATABASE|TABLE) *(.+)$', re.I)
     try:
-        parsedQuery = regex.match(queryString).groups()
-        resourceType = parsedQuery[0].lower() # grab the resource keyword
-        queryString = parsedQuery[1] # save the remaining query
-        resourceTypes[resourceType](queryString) # call the appropriate function based on resource
+        parsed_query = create_regex.match(query_string).groups()
+        resource_type = parsed_query[0].lower()  # grab the resource keyword
+        query_string = parsed_query[1]  # save the remaining query
+
+        # call the appropriate function based on resource
+        resource_types[resource_type](query_string)
     except:
         print('Error: syntax error')
 
-def drop (queryString):
+
+def drop(query_string):
     """
     Initiates a DROP command
 
     queryString -- the remaining query after the DROP keyword
     """
-    resourceTypes = {
-        'database': dropDatabase
+    resource_types = {
+        'database': drop_database
     }
-    regex = re.compile('^(DATABASE|TABLE) *(.+)$', re.I)
+    drop_regex = re.compile('^(DATABASE|TABLE) *(.+)$', re.I)
     try:
-        parsedQuery = regex.match(queryString).groups()
-        resourceType = parsedQuery[0].lower() # grab the resource keyword
-        queryString = parsedQuery[1] # save the remaining query
-        resourceTypes[resourceType](queryString) # call the appropriate function based on resource
+        parsed_query = drop_regex.match(query_string).groups()
+        resource_type = parsed_query[0].lower()  # grab the resource keyword
+        query_string = parsed_query[1]  # save the remaining query
+
+        # call the appropriate function based on resource
+        resource_types[resource_type](query_string)
     except:
         print('Error: syntax error')
 
-def use (queryString):
+
+def use(query_string):
     """
     Initiates a USE command
 
     queryString -- the remaining query after the USE keyword
     """
-    global DB_DIR, activeDb
-    regex = re.compile('^[a-z0-9_-]+$', re.I)
-    match = regex.match(queryString)
-    if match != None:
-        dbName = queryString
-        dbPath = os.path.join(DB_DIR, dbName)
-        if os.path.isdir(dbPath):
-            activeDb = dbName
-            print('Using database %s.' %dbName)
+    global DB_DIR, active_database
+    use_regex = re.compile('^[a-z0-9_-]+$', re.I)
+    match = use_regex.match(query_string)
+    if match is not None:
+        db_name = query_string
+        db_path = os.path.join(DB_DIR, db_name)
+        if os.path.isdir(db_path):
+            active_database = db_name
+            print('Using database %s.' % db_name)
         else:
-            print('!Failed to use database %s because it does not exist.' %dbName)
+            print('!Failed to use database %s because it does not exist.' % db_name)
     else:
         print('Error: syntax error')
 
-def createDatabase (dbName):
+
+def create_database(db_name):
     """
     Creates a database with the given name
 
     dbName -- the name of the database to create
     """
     global DB_DIR
-    dbPath = os.path.join(DB_DIR, dbName) # create the path to the new database 
+    db_path = os.path.join(DB_DIR, db_name)  # create the path to the new database
 
     try:
-        os.mkdir(dbPath)
-        print('Database %s created.' % dbName)
+        os.mkdir(db_path)
+        print('Database %s created.' % db_name)
     except OSError:
-        print('!Failed to create database %s because it already exists.' %dbName)
+        print('!Failed to create database %s because it already exists.' % db_name)
 
-def createTable (tblName):
+
+def create_table(tbl_name):
     """
     Creates a table with the given name
 
     tblName -- the name of the table to create
     """
-    global DB_DIR, activeDb
-    tblPath = os.path.join(DB_DIR, activeDb, tblName) # get the path to the active database
+    global DB_DIR, active_database
+
+    # get the path to the active database
+    tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
 
     try:
-        os.mknod(tblPath);
-        print('Table %s created.' %tblName)
+        os.mknod(tbl_path)
+        print('Table %s created.' % tbl_name)
     except OSError:
-        print('!Failed to create table %s because it already exists.' %tblName)
+        print('!Failed to create table %s because it already exists.' % tbl_name)
 
-def dropDatabase (dbName):
+
+def drop_database(db_name):
     """
     Drops a database with the given name
 
     dbName -- the name of the database to drop
     """
     global DB_DIR
-    dbPath = os.path.join(DB_DIR, dbName) # create the path to the new database
+    db_path = os.path.join(DB_DIR, db_name)  # create the path to the new database
 
     try:
         # recursively remove database (directory) and all tables (files)
-        shutil.rmtree(dbPath)
-        print('Database %s dropped.' % dbName)
+        shutil.rmtree(db_path)
+        print('Database %s dropped.' % db_name)
     except OSError:
-        print('!Failed to database %s because it does not exist.' %dbName)
+        print('!Failed to database %s because it does not exist.' % db_name)
 
-###################################################################################
 
-dotCmds = {
-    '.exit': exitProgram,
-    '.help': printHelp
+dot_commands = {
+    '.exit': exit_program,
+    '.help': print_help
 }
 
-dotCmdRegex = re.compile('^\.([a-z]*) *$', re.I)
+dot_command_regex = re.compile('^\.([a-z]*) *$', re.I)
 
-queryCommands = {
+query_commands = {
     'create': create,
     'drop': drop,
     'use': use
 }
 
-init() # create initial directory structure
-activeDb = 'main' # set the initial active database to 'main'
+init()  # create initial directory structure
+active_database = 'main'  # set the initial active database to 'main'
 
 # The main command prompt loop
 while True:
     # reset our variables
-    userInput = ''
-    queryDone = False
-    isDotCmd = False
+    user_input = ''
+    query_done = False
+    is_dot_command = False
 
-    while not queryDone:
-        # always append prior user input for multiline support
-        userInput += input('> ');
+    while not query_done:
+        # always append prior user input for multi-line support
+        user_input += input('> ')
 
         # ignore comments
-        if userInput[0:2] == '--':
-            userInput = ''
+        if user_input[0:2] == '--':
+            user_input = ''
 
         # determine if the input is a dot-command
-        isDotCmd = dotCmdRegex.match(userInput) != None
+        is_dot_command = dot_command_regex.match(user_input) is not None
 
-        if isDotCmd:
-            break # dot-commands aren't multiline/multi-keyword, so bail
+        if is_dot_command:
+            break  # dot-commands aren't multi-line/multi-keyword, so bail
         else:
             # we're done collecting input if input is non-empty and last token is a ';'
-            userInput = userInput.strip() # strip all leading and trailing whitespace
-            queryDone = len(userInput) > 0 and userInput[-1] == ';'
+            user_input = user_input.strip()  # strip all leading and trailing whitespace
+            query_done = len(user_input) > 0 and user_input[-1] == ';'
 
             # if no ';', but input is non-empty, append a ' ' to delimit further input
-            if not queryDone and len(userInput) > 0:
-                userInput += ' '
+            if not query_done and len(user_input) > 0:
+                user_input += ' '
 
-    if isDotCmd:
+    if is_dot_command:
         try:
-            userInput = userInput.lower() # make dot-command case insensitive
-            dotCmds[userInput]() # try calling the dotCmds function keyed by userInput
+            user_input = user_input.lower()  # make dot-command case insensitive
+            dot_commands[user_input]()  # try calling the dotCmds function keyed by userInput
         except KeyError:
             error = 'Error: unknown command or invalid arguments:  "'
-            error += userInput[1:] # strip off the '.'
+            error += user_input[1:]  # strip off the '.'
             error += '". Enter ".help" for help'
             print(error)
     else:
@@ -203,14 +213,13 @@ while True:
 
         try:
             # parse the input into groups
-            parsedInput = regex.match(userInput).groups()
+            parsed_input = regex.match(user_input).groups()
 
             # strip all elements which are None or ''          
-            parsedInput = list(filter(lambda x: x != None and x != '', parsedInput))
+            parsed_input = list(filter(lambda x: x is not None and x != '', parsed_input))
 
-            if parsedInput[0] != ';':
-                action = parsedInput[0].lower()
-                queryCommands[action](parsedInput[1])
+            if parsed_input[0] != ';':
+                action = parsed_input[0].lower()
+                query_commands[action](parsed_input[1])
         except:
             print('Error: syntax error')
-
