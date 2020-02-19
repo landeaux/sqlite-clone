@@ -7,9 +7,19 @@ import os  # for writing directories and files
 import shutil  # for writing directories and files
 import re  # for using regular expressions
 
+# Global Constants
+
 DB_DIR = 'dbs'
 INIT_DB = 'main'
+DOT_COMMAND_REGEX = re.compile('^\.([a-z]*) *$', re.I)
+QUERY_COMMAND_REGEX = re.compile('^(CREATE|DROP|USE|SELECT|ALTER) *([^;]*)[ ;]*|^[ ;]*(;)$', re.I)
 
+# Global vars
+
+active_database = 'main'  # set the initial active database to 'main'
+
+
+# Function definitions
 
 def init():
     global DB_DIR, INIT_DB
@@ -85,7 +95,8 @@ def drop(query_string):
     queryString -- the remaining query after the DROP keyword
     """
     resource_types = {
-        'database': drop_database
+        'database': drop_database,
+        'table': drop_table,
     }
     drop_regex = re.compile('^(DATABASE|TABLE) *(.+)$', re.I)
     try:
@@ -140,7 +151,7 @@ def create_table(query_string):
     """
     Creates a table with the given name
 
-    tblName -- the name of the table to create
+    query_string -- the remaining query string after CREATE TABLE keywords
     """
     global DB_DIR, active_database
 
@@ -171,7 +182,7 @@ def drop_database(db_name):
     """
     Drops a database with the given name
 
-    dbName -- the name of the database to drop
+    db_name -- the name of the database to drop
     """
     global DB_DIR
     db_path = os.path.join(DB_DIR, db_name)  # create the path to the new database
@@ -184,12 +195,30 @@ def drop_database(db_name):
         print('!Failed to database %s because it does not exist.' % db_name)
 
 
+def drop_table(tbl_name):
+    """
+    Drops a table with the given name
+
+    tbl_name -- the name of the table to drop
+    """
+    global DB_DIR, active_database
+
+    try:
+        # get the path to the active database
+        tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
+        os.remove(tbl_path)
+
+        print('Table %s dropped.' % tbl_name)
+    except OSError:
+        print('!Failed to drop table %s because it does not exist.' % tbl_name)
+
+
+# Dot/Query Command Dictionaries
+
 dot_commands = {
     '.exit': exit_program,
     '.help': print_help
 }
-
-dot_command_regex = re.compile('^\.([a-z]*) *$', re.I)
 
 query_commands = {
     'create': create,
@@ -197,8 +226,9 @@ query_commands = {
     'use': use
 }
 
+# Program start
+
 init()  # create initial directory structure
-active_database = 'main'  # set the initial active database to 'main'
 
 # The main command prompt loop
 while True:
@@ -216,7 +246,7 @@ while True:
             user_input = ''
 
         # determine if the input is a dot-command
-        is_dot_command = dot_command_regex.match(user_input) is not None
+        is_dot_command = DOT_COMMAND_REGEX.match(user_input) is not None
 
         if is_dot_command:
             break  # dot-commands aren't multi-line/multi-keyword, so bail
@@ -239,17 +269,15 @@ while True:
             error += '". Enter ".help" for help'
             print(error)
     else:
-        regex = re.compile('^(CREATE|DROP|USE|SELECT|ALTER) *([^;]*)[ ;]*|^[ ;]*(;)$', re.I)
+        try:
+            # parse the input into groups
+            parsed_input = QUERY_COMMAND_REGEX.match(user_input).groups()
 
-        # try:
-        # parse the input into groups
-        parsed_input = regex.match(user_input).groups()
+            # strip all elements which are None or ''
+            parsed_input = list(filter(lambda x: x is not None and x != '', parsed_input))
 
-        # strip all elements which are None or ''
-        parsed_input = list(filter(lambda x: x is not None and x != '', parsed_input))
-
-        if parsed_input[0] != ';':
-            action = parsed_input[0].lower()
-            query_commands[action](parsed_input[1])
-        # except:
-        #     print('Error: syntax error')
+            if parsed_input[0] != ';':
+                action = parsed_input[0].lower()
+                query_commands[action](parsed_input[1])
+        except:
+            print('Error: syntax error')
