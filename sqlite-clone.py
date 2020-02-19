@@ -54,6 +54,7 @@ def exit_program():
     """
     Exits the program
     """
+    print('All done.')
     quit()
 
 
@@ -201,6 +202,7 @@ def alter_table(query_string):
 
         if os.path.exists(tbl_path):
             operations[operation](tbl_path, column)
+            print('Table %s modified' % tbl_name)
         else:
             print('!Failed to query table %s because it does not exist.' % tbl_name)
     except AttributeError:
@@ -277,9 +279,9 @@ def drop_database(db_name):
     try:
         # recursively remove database (directory) and all tables (files)
         shutil.rmtree(db_path)
-        print('Database %s dropped.' % db_name)
+        print('Database %s deleted.' % db_name)
     except OSError:
-        print('!Failed to database %s because it does not exist.' % db_name)
+        print('!Failed to delete %s because it does not exist.' % db_name)
 
 
 def drop_table(tbl_name):
@@ -295,9 +297,9 @@ def drop_table(tbl_name):
         tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
         os.remove(tbl_path)
 
-        print('Table %s dropped.' % tbl_name)
+        print('Table %s deleted.' % tbl_name)
     except OSError:
-        print('!Failed to drop table %s because it does not exist.' % tbl_name)
+        print('!Failed to delete table %s because it does not exist.' % tbl_name)
 
 
 # Dot/Query Command Dictionaries
