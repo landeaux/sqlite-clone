@@ -114,7 +114,7 @@ def use(query_string):
     """
     Initiates a USE command
 
-    queryString -- the remaining query after the USE keyword
+    query_string -- the remaining query after the USE keyword
     """
     global DB_DIR, active_database
     use_regex = re.compile('^[a-z0-9_-]+$', re.I)
@@ -132,20 +132,25 @@ def use(query_string):
 
 
 def select(query_string):
+    """
+    Initiates a SELECT command
+
+    query_string -- the remaining query after the SELECT keyword
+    """
     global DB_DIR, active_database
 
     select_regex = re.compile('^([a-z0-9_*-, ]+) *FROM *([a-z0-9_-]+)$', re.I)
 
     try:
         groups = select_regex.match(query_string).groups()
-        columns = groups[0].strip()
-        tbl_name = groups[1].strip()
+        columns = groups[0].strip()  # grab only the columns we want to select
+        tbl_name = groups[1].strip()  # grab just the table name from the query
         tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
 
         if os.path.exists(tbl_path):
-            if columns == '*':
+            if columns == '*':  # if selecting all columns
                 with open(tbl_path, 'r') as table_file:
-                    print(table_file.read())
+                    print(table_file.read())  # just print the whole file
         else:
             print('!Failed to query table %s because it does not exist.' % tbl_name)
 
