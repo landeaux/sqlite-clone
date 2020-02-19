@@ -131,6 +131,28 @@ def use(query_string):
         print('Error: syntax error')
 
 
+def select(query_string):
+    global DB_DIR, active_database
+
+    select_regex = re.compile('^([a-z0-9_*-, ]+) *FROM *([a-z0-9_-]+)$', re.I)
+
+    try:
+        groups = select_regex.match(query_string).groups()
+        columns = groups[0].strip()
+        tbl_name = groups[1].strip()
+        tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
+
+        if os.path.exists(tbl_path):
+            if columns == '*':
+                with open(tbl_path, 'r') as table_file:
+                    print(table_file.read())
+        else:
+            print('!Failed to query table %s because it does not exist.' % tbl_name)
+
+    except AttributeError:
+        print('Error: syntax error')
+
+
 def create_database(db_name):
     """
     Creates a database with the given name
@@ -223,7 +245,8 @@ dot_commands = {
 query_commands = {
     'create': create,
     'drop': drop,
-    'use': use
+    'use': use,
+    'select': select
 }
 
 # Program start
