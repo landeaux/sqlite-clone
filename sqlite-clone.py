@@ -21,6 +21,23 @@ def init():
             os.mkdir(db_path)
 
 
+# helper functions
+
+def join_l(l, sep):
+    """
+    Joins a list (l) by some delimiter string (sep) into a new string.
+    Credit: https://codereview.stackexchange.com/a/162814
+
+    l -- The list to join into a string
+    sep -- The string to "glue" the list elements together with
+    """
+    li = iter(l)
+    string = str(next(li))
+    for i in li:
+        string += str(sep) + str(i)
+    return string
+
+
 # dot-command functions
 
 def exit_program():
@@ -57,7 +74,7 @@ def create(query_string):
 
         # call the appropriate function based on resource
         resource_types[resource_type](query_string)
-    except:
+    except AttributeError:
         print('Error: syntax error')
 
 
@@ -119,7 +136,7 @@ def create_database(db_name):
         print('!Failed to create database %s because it already exists.' % db_name)
 
 
-def create_table(tbl_name):
+def create_table(query_string):
     """
     Creates a table with the given name
 
@@ -127,14 +144,27 @@ def create_table(tbl_name):
     """
     global DB_DIR, active_database
 
-    # get the path to the active database
-    tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
+    table_regex = re.compile('^([a-z0-9_-]+) *\((.*)\)$', re.I)
+    groups = table_regex.match(query_string).groups()
+    tbl_name = groups[0]
 
     try:
+        # get the path to the active database
+        tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
         os.mknod(tbl_path)
+
+        schema = groups[1]
+        col_list = schema.split(',')  # split string up by column
+        col_list = [col.strip() for col in col_list]  # strip surrounding whitespace
+        col_str = join_l(col_list, ' | ')  # join list into string with sep " | "
+        with open(tbl_path, 'w') as tbl_file:
+            tbl_file.write(col_str)
+
         print('Table %s created.' % tbl_name)
     except OSError:
         print('!Failed to create table %s because it already exists.' % tbl_name)
+    except IndexError:
+        print('Error: syntax error near \'%s\'' % tbl_name)
 
 
 def drop_database(db_name):
@@ -211,15 +241,15 @@ while True:
     else:
         regex = re.compile('^(CREATE|DROP|USE|SELECT|ALTER) *([^;]*)[ ;]*|^[ ;]*(;)$', re.I)
 
-        try:
-            # parse the input into groups
-            parsed_input = regex.match(user_input).groups()
+        # try:
+        # parse the input into groups
+        parsed_input = regex.match(user_input).groups()
 
-            # strip all elements which are None or ''          
-            parsed_input = list(filter(lambda x: x is not None and x != '', parsed_input))
+        # strip all elements which are None or ''
+        parsed_input = list(filter(lambda x: x is not None and x != '', parsed_input))
 
-            if parsed_input[0] != ';':
-                action = parsed_input[0].lower()
-                query_commands[action](parsed_input[1])
-        except:
-            print('Error: syntax error')
+        if parsed_input[0] != ';':
+            action = parsed_input[0].lower()
+            query_commands[action](parsed_input[1])
+        # except:
+        #     print('Error: syntax error')
