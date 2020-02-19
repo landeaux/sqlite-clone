@@ -158,6 +158,58 @@ def select(query_string):
         print('Error: syntax error')
 
 
+def alter(query_string):
+    """
+    Initiates a ALTER command
+
+    query_string -- the remaining query after the ALTER keyword
+    """
+    print('alter called with query_string = "%s"' % query_string)
+    resource_types = {
+        'table': alter_table,
+    }
+    alter_regex = re.compile('^(TABLE) *(.+)$', re.I)
+    try:
+        parsed_query = alter_regex.match(query_string).groups()
+        resource_type = parsed_query[0].lower()  # grab the resource keyword
+        query_string = parsed_query[1]  # save the remaining query
+
+        # call the appropriate function based on resource
+        resource_types[resource_type](query_string)
+    except AttributeError:
+        print('Error: syntax error near ')
+    except IndexError:
+        print('Error: syntax error')
+
+
+def alter_table(query_string):
+    """
+    Alters a table
+
+    query_string -- The remaining query after the ALTER TABLE keywords
+    """
+    print('alter_table called with query_string = "%s"' % query_string)
+    alter_table_regex = re.compile('^([a-z0-9_-]+) *(ADD) *(.+)$', re.I)
+    groups = alter_table_regex.match(query_string).groups()
+    print('groups:', groups)
+    tbl_name = groups[0]
+    print('tbl_name: %s' % tbl_name)
+    operation = groups[1]
+    print('operation: %s' % operation)
+    column = groups[2]
+    print('column: %s' % column)
+
+    tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
+    print('tbl_path: %s' % tbl_path)
+
+    if os.path.exists(tbl_path):
+        print('table %s exists!' % tbl_name)
+        with open(tbl_path, 'a') as table_file:
+            table_file.write(' | %s' % column)
+    else:
+        print('table %s does not exist!' % tbl_name)
+
+
 def create_database(db_name):
     """
     Creates a database with the given name
@@ -251,7 +303,8 @@ query_commands = {
     'create': create,
     'drop': drop,
     'use': use,
-    'select': select
+    'select': select,
+    'alter': alter
 }
 
 # Program start
