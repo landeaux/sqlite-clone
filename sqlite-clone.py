@@ -164,7 +164,6 @@ def alter(query_string):
 
     query_string -- the remaining query after the ALTER keyword
     """
-    print('alter called with query_string = "%s"' % query_string)
     resource_types = {
         'table': alter_table,
     }
@@ -177,7 +176,7 @@ def alter(query_string):
         # call the appropriate function based on resource
         resource_types[resource_type](query_string)
     except AttributeError:
-        print('Error: syntax error near ')
+        print('Error: syntax error')
     except IndexError:
         print('Error: syntax error')
 
@@ -188,26 +187,35 @@ def alter_table(query_string):
 
     query_string -- The remaining query after the ALTER TABLE keywords
     """
-    print('alter_table called with query_string = "%s"' % query_string)
+    operations = {
+        'add': alter_table_add_column
+    }
     alter_table_regex = re.compile('^([a-z0-9_-]+) *(ADD) *(.+)$', re.I)
-    groups = alter_table_regex.match(query_string).groups()
-    print('groups:', groups)
-    tbl_name = groups[0]
-    print('tbl_name: %s' % tbl_name)
-    operation = groups[1]
-    print('operation: %s' % operation)
-    column = groups[2]
-    print('column: %s' % column)
+    try:
+        groups = alter_table_regex.match(query_string).groups()
+        tbl_name = groups[0]
+        operation = groups[1].lower()
+        column = groups[2]
 
-    tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
-    print('tbl_path: %s' % tbl_path)
+        tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
 
-    if os.path.exists(tbl_path):
-        print('table %s exists!' % tbl_name)
-        with open(tbl_path, 'a') as table_file:
-            table_file.write(' | %s' % column)
-    else:
-        print('table %s does not exist!' % tbl_name)
+        if os.path.exists(tbl_path):
+            operations[operation](tbl_path, column)
+        else:
+            print('!Failed to query table %s because it does not exist.' % tbl_name)
+    except AttributeError:
+        print('Error: syntax error')
+
+
+def alter_table_add_column(tbl_path, column):
+    """
+    Alters a table by adding the specified column
+
+    tbl_path -- The file path to the table
+    column -- The column to add to the table
+    """
+    with open(tbl_path, 'a') as table_file:
+        table_file.write(' | %s' % column)
 
 
 def create_database(db_name):
