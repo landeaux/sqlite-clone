@@ -330,6 +330,8 @@ while True:
         # always append prior user input for multi-line support
         user_input += input('> ')
 
+        user_input = user_input.strip()  # strip all surrounding whitespace
+
         # ignore comments
         if user_input[0:2] == '--':
             user_input = ''
