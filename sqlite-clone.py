@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 
 # Programming Assignment 1 - Metadata Management
+#
 # Author: Adam Landis
+# Date: 02/20/2020
+# History:
+# - Completed implementation of all metadata functionality (e.g. creating and
+#   dropping databases and tables, using, altering, and querying tables, etc.)
 
 import os  # for writing directories and files
 import shutil  # for writing directories and files
@@ -118,12 +123,14 @@ def use(query_string):
     query_string -- the remaining query after the USE keyword
     """
     global DB_DIR, active_database
+
     use_regex = re.compile('^[a-z0-9_-]+$', re.I)
-    match = use_regex.match(query_string)
+    match = use_regex.match(query_string)  # match the query_string against the regex
+
     if match is not None:
-        db_name = query_string
-        db_path = os.path.join(DB_DIR, db_name)
-        if os.path.isdir(db_path):
+        db_name = query_string  # for USE commands, the remaining query is the db name
+        db_path = os.path.join(DB_DIR, db_name)  # generate the file path to the db
+        if os.path.isdir(db_path):  # if the file path to the database exists
             active_database = db_name
             print('Using database %s.' % db_name)
         else:
@@ -194,14 +201,14 @@ def alter_table(query_string):
     alter_table_regex = re.compile('^([a-z0-9_-]+) *(ADD) *(.+)$', re.I)
     try:
         groups = alter_table_regex.match(query_string).groups()
-        tbl_name = groups[0]
-        operation = groups[1].lower()
-        column = groups[2]
+        tbl_name = groups[0]  # store the table name from the query
+        operation = groups[1].lower()  # store the operation (e.g ADD) from the query
+        column = groups[2]  # store the column from the query
 
         tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
 
-        if os.path.exists(tbl_path):
-            operations[operation](tbl_path, column)
+        if os.path.exists(tbl_path):  # if the file path to the table exists
+            operations[operation](tbl_path, column)  # call the appropriate handler
             print('Table %s modified' % tbl_name)
         else:
             print('!Failed to query table %s because it does not exist.' % tbl_name)
@@ -217,7 +224,7 @@ def alter_table_add_column(tbl_path, column):
     column -- The column to add to the table
     """
     with open(tbl_path, 'a') as table_file:
-        table_file.write(' | %s' % column)
+        table_file.write(' | %s' % column)  # append the column to the file header
 
 
 def create_database(db_name):
@@ -230,7 +237,7 @@ def create_database(db_name):
     db_path = os.path.join(DB_DIR, db_name)  # create the path to the new database
 
     try:
-        os.mkdir(db_path)
+        os.mkdir(db_path)  # make a directory for the database
         print('Database %s created.' % db_name)
     except OSError:
         print('!Failed to create database %s because it already exists.' % db_name)
@@ -251,14 +258,14 @@ def create_table(query_string):
     try:
         # get the path to the active database
         tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
-        os.mknod(tbl_path)
+        os.mknod(tbl_path)  # make a file in the active database directory
 
-        schema = groups[1]
+        schema = groups[1]  # store the schema (i.e. the columns and their data types)
         col_list = schema.split(',')  # split string up by column
         col_list = [col.strip() for col in col_list]  # strip surrounding whitespace
         col_str = join_l(col_list, ' | ')  # join list into string with sep " | "
         with open(tbl_path, 'w') as tbl_file:
-            tbl_file.write(col_str)
+            tbl_file.write(col_str)  # write the first line as the columns of the table
 
         print('Table %s created.' % tbl_name)
     except OSError:
@@ -274,6 +281,7 @@ def drop_database(db_name):
     db_name -- the name of the database to drop
     """
     global DB_DIR
+
     db_path = os.path.join(DB_DIR, db_name)  # create the path to the new database
 
     try:
@@ -295,14 +303,14 @@ def drop_table(tbl_name):
     try:
         # get the path to the active database
         tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
-        os.remove(tbl_path)
+        os.remove(tbl_path)  # remove the file from the active db directory
 
         print('Table %s deleted.' % tbl_name)
     except OSError:
         print('!Failed to delete table %s because it does not exist.' % tbl_name)
 
 
-# Dot/Query Command Dictionaries
+# Dot/Query Command Dictionaries (these map commands to their appropriate handler)
 
 dot_commands = {
     '.exit': exit_program,
