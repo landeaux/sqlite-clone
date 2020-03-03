@@ -17,7 +17,7 @@ import re  # for using regular expressions
 DB_DIR = 'dbs'
 INIT_DB = 'main'
 DOT_COMMAND_REGEX = re.compile('^\.([a-z]*) *$', re.I)
-QUERY_COMMAND_REGEX = re.compile('^(CREATE|DROP|USE|SELECT|ALTER) *([^;]*)[ ;]*|^[ ;]*(;)$', re.I)
+QUERY_COMMAND_REGEX = re.compile('^(CREATE|DROP|USE|SELECT|ALTER|INSERT) *([^;]*)[ ;]*|^[ ;]*(;)$', re.I)
 
 # Global vars
 
@@ -164,6 +164,21 @@ def select(query_string):
 
     except AttributeError:
         print('Error: syntax error')
+
+
+def insert(query_string):
+    """
+    Initiates an INSERT command
+
+    query_string -- the remaining query after the INSERT keyword
+    """
+    print('insert called with query_string = %s' %query_string)
+    insert_regex = re.compile('^INTO +([a-zA-Z0-9_-]+) +VALUES *\((.*)\)$', re.I)
+    groups = insert_regex.match(query_string).groups()
+    table = groups[0].lower()
+    values = groups[1]
+    print('table = %s' %table)
+    print('values = %s' %values)
 
 
 def alter(query_string):
@@ -322,7 +337,8 @@ query_commands = {
     'drop': drop,
     'use': use,
     'select': select,
-    'alter': alter
+    'alter': alter,
+    'insert': insert
 }
 
 # Program start
