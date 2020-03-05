@@ -17,7 +17,7 @@ import re  # for using regular expressions
 DB_DIR = 'dbs'
 INIT_DB = 'main'
 DOT_COMMAND_REGEX = re.compile('^\.([a-z]*) *$', re.I)
-QUERY_COMMAND_REGEX = re.compile('^(CREATE|DROP|USE|SELECT|ALTER|INSERT) *([^;]*)[ ;]*|^[ ;]*(;)$', re.I)
+QUERY_COMMAND_REGEX = re.compile('^(CREATE|DROP|USE|SELECT|ALTER|INSERT|UPDATE) *([^;]*)[ ;]*|^[ ;]*(;)$', re.I)
 
 # Global vars
 
@@ -188,6 +188,15 @@ def insert(query_string):
     else:
         print('!Failed to query table %s because it does not exist.' % tbl_name)
 
+
+def update(query_string):
+    """
+    Initiates an UPDATE command
+
+    query_string -- the remaining query after the UPDATE keyword
+    """
+    print('update query called with query_string = %s' %query_string)
+
 def alter(query_string):
     """
     Initiates a ALTER command
@@ -345,7 +354,8 @@ query_commands = {
     'use': use,
     'select': select,
     'alter': alter,
-    'insert': insert
+    'insert': insert,
+    'update': update
 }
 
 # Program start
