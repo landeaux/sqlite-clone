@@ -174,24 +174,16 @@ def insert(query_string):
     """
     global DB_DIR, active_database
 
-    print('insert called with query_string = \'%s\'' %query_string)
     insert_regex = re.compile('^INTO +([a-zA-Z0-9_-]+) +VALUES *\((.*)\)$', re.I)
     groups = insert_regex.match(query_string).groups()
     tbl_name = groups[0].lower()
     values_str = groups[1]
     values_lst = re.sub(r"( |')", "", values_str).split(',')  # turn value string into list of values
-    print('tbl_name = %s' %tbl_name)
-    print('values_str = %s' %values_str)
-    print('values_lst = ', values_lst)
     tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
-    print(tbl_path)
     with open(tbl_path, 'a+') as table_file:
-        print('file opened. writing...')
         line = ' | '.join(values_lst)
-        print('line = %s' %line)
         table_file.write('\n%s' %line)  # append the line as a new row in the file
-
-
+        print('1 new record inserted.')
 
 
 def alter(query_string):
