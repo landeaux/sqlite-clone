@@ -180,11 +180,13 @@ def insert(query_string):
     values_str = groups[1]
     values_lst = re.sub(r"( |')", "", values_str).split(',')  # turn value string into list of values
     tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
-    with open(tbl_path, 'a+') as table_file:
-        line = ' | '.join(values_lst)
-        table_file.write('\n%s' %line)  # append the line as a new row in the file
-        print('1 new record inserted.')
-
+    if os.path.exists(tbl_path):
+        with open(tbl_path, 'a+') as table_file:
+            line = ' | '.join(values_lst)
+            table_file.write('\n%s' %line)  # append the line as a new row in the file
+            print('1 new record inserted.')
+    else:
+        print('!Failed to query table %s because it does not exist.' % tbl_name)
 
 def alter(query_string):
     """
