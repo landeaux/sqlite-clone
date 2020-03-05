@@ -172,15 +172,26 @@ def insert(query_string):
 
     query_string -- the remaining query after the INSERT keyword
     """
+    global DB_DIR, active_database
+
     print('insert called with query_string = \'%s\'' %query_string)
     insert_regex = re.compile('^INTO +([a-zA-Z0-9_-]+) +VALUES *\((.*)\)$', re.I)
     groups = insert_regex.match(query_string).groups()
-    table = groups[0].lower()
+    tbl_name = groups[0].lower()
     values_str = groups[1]
     values_lst = re.sub(r"( |')", "", values_str).split(',')  # turn value string into list of values
-    print('table = %s' %table)
+    print('tbl_name = %s' %tbl_name)
     print('values_str = %s' %values_str)
     print('values_lst = ', values_lst)
+    tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
+    print(tbl_path)
+    with open(tbl_path, 'a+') as table_file:
+        print('file opened. writing...')
+        line = ' | '.join(values_lst)
+        print('line = %s' %line)
+        table_file.write('\n%s' %line)  # append the line as a new row in the file
+
+
 
 
 def alter(query_string):
@@ -270,7 +281,7 @@ def create_table(query_string):
 
     table_regex = re.compile('^([a-z0-9_-]+) *\((.*)\)$', re.I)
     groups = table_regex.match(query_string).groups()
-    tbl_name = groups[0]
+    tbl_name = groups[0].lower()
 
     try:
         # get the path to the active database
