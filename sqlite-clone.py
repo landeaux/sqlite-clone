@@ -172,13 +172,15 @@ def insert(query_string):
 
     query_string -- the remaining query after the INSERT keyword
     """
-    print('insert called with query_string = %s' %query_string)
+    print('insert called with query_string = \'%s\'' %query_string)
     insert_regex = re.compile('^INTO +([a-zA-Z0-9_-]+) +VALUES *\((.*)\)$', re.I)
     groups = insert_regex.match(query_string).groups()
     table = groups[0].lower()
-    values = groups[1]
+    values_str = groups[1]
+    values_lst = re.sub(r"( |')", "", values_str).split(',')  # turn value string into list of values
     print('table = %s' %table)
-    print('values = %s' %values)
+    print('values_str = %s' %values_str)
+    print('values_lst = ', values_lst)
 
 
 def alter(query_string):
