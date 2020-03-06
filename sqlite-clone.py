@@ -195,7 +195,18 @@ def update(query_string):
 
     query_string -- the remaining query after the UPDATE keyword
     """
+    global DB_DIR, active_database
+
     print('update query called with query_string = %s' %query_string)
+    update_regex = re.compile("^([a-zA-Z0-9_-]+) +SET +(.*) +WHERE +(.*)$", re.I)
+    groups = update_regex.match(query_string).groups()
+    tbl_name = groups[0].lower()
+    kv_pairs_str = groups[1]
+    condition = groups[2]
+    print('tbl_name = %s' %tbl_name)
+    print('kv_pairs_str = %s' %kv_pairs_str)
+    print('condition = %s' %condition)
+
 
 def alter(query_string):
     """
