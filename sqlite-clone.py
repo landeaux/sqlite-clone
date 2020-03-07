@@ -152,7 +152,7 @@ def select(query_string):
     try:
         groups = select_regex.match(query_string).groups()
         columns = groups[0].strip()  # grab only the columns we want to select
-        tbl_name = groups[1].strip()  # grab just the table name from the query
+        tbl_name = groups[1].strip().lower()  # grab table name and convert to lowercase
         tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
 
         if os.path.exists(tbl_path):
@@ -161,8 +161,9 @@ def select(query_string):
                     table_file.seek(0)  # make sure we're at beginning of file
                     for line in table_file.readlines():
                         # reformat comma-delimited line into ' | ' delimited output
-                        output = ' | '.join(line.split(','))
+                        output = ' | '.join(line.split(',')).strip('\n')
                         print(output)
+                    table_file.close()
         else:
             print('!Failed to query table %s because it does not exist.' % tbl_name)
 
@@ -190,6 +191,7 @@ def insert(query_string):
             line = ','.join(values_lst)  # rejoin value list as comma-delimited list
             table_file.write('\n%s' % line)  # append the line as a new row in the file
             print('1 new record inserted.')
+            table_file.close()
     else:
         print('!Failed to query table %s because it does not exist.' % tbl_name)
 
@@ -227,6 +229,7 @@ def update(query_string):
                             col = idx
                     print('column found at idx = %s' % col)
                 row += 1
+            table_file.close()
     else:
         print('!Failed to query table %s because it does not exist.' % tbl_name)
 
@@ -290,6 +293,7 @@ def alter_table_add_column(tbl_path, column):
     """
     with open(tbl_path, 'a') as table_file:
         table_file.write(',%s' % column)  # append the column to the file header
+        table_file.close()
 
 
 def create_database(db_name):
@@ -329,8 +333,9 @@ def create_table(query_string):
         col_list = schema.split(',')  # split string up by column
         col_list = [col.strip() for col in col_list]  # strip surrounding whitespace
         col_str = join_l(col_list, ',')  # join list into string with sep ","
-        with open(tbl_path, 'w') as tbl_file:
-            tbl_file.write(col_str)  # write the first line as the columns of the table
+        with open(tbl_path, 'w') as table_file:
+            table_file.write(col_str)  # write the first line as the columns of the table
+            table_file.close()
 
         print('Table %s created.' % tbl_name)
     except OSError:
