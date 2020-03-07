@@ -3,10 +3,11 @@
 # Programming Assignment 1 - Metadata Management
 #
 # Author: Adam Landis
-# Date: 02/20/2020
+# Date: 03/12/2020
 # History:
-# - Completed implementation of all metadata functionality (e.g. creating and
+# - 02/20/2020 -- Completed implementation of all metadata functionality (e.g. creating and
 #   dropping databases and tables, using, altering, and querying tables, etc.)
+
 import os  # for writing directories and files
 import shutil  # for writing directories and files
 import re  # for using regular expressions
@@ -234,14 +235,36 @@ def update(query_string):
     print(kv_dict)
     tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
     if os.path.exists(tbl_path):
+        new_rows = []
         with open(tbl_path, 'r') as table_file:
             tbl_reader = csv.reader(table_file)
+            row_num = 0
+            col_indices = []
             for row in tbl_reader:
                 print('row:', row)
-                for col in range(len(row)):
-                    print('col: %i' % col)
-                    print('row[%i]:' % col, row[col])
+                if row_num == 0:  # header row
+                    new_rows.append(row)
+                    for idx, key in enumerate(kv_dict.keys()):
+                        print('idx:', idx)
+                        print('key:', key)
+                        col_indices.append(None)
+                        for col in range(len(row)):
+                            if col not in col_indices:
+                                if re.match('^' + key + ' +', row[col], re.I):
+                                    col_indices[idx] = col
+                    print('col indices found:', col_indices)
+                else:
+                    for idx, val in enumerate(kv_dict.values()):
+                        new_row = row
+                        new_row[col_indices[idx]] = val
+                        new_rows.append(new_row)
+                row_num += 1
 
+            table_file.close()
+        with open(tbl_path, 'w') as table_file:
+            table_writer = csv.writer(table_file)
+            for row in new_rows:
+                table_writer.writerow(row)
             table_file.close()
     else:
         print('!Failed to query table %s because it does not exist.' % tbl_name)
