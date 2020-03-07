@@ -209,7 +209,20 @@ def update(query_string):
     print('condition = %s' % condition)
     tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
     if os.path.exists(tbl_path):
-        print('Opening file...')
+        with open(tbl_path, 'r') as table_file:
+            table_file.seek(0)
+            col = -1
+            row = 0
+            for line in table_file.readlines():
+                print('current line is %s' % line)
+                if row == 0:
+                    line_lst = line.split(' | ')
+                    print('line_lst =', line_lst)
+                    for idx, val in enumerate(line_lst):
+                        if re.match('^name .*$', val, re.I) is not None:
+                            col = idx
+                    print('column found at idx = %s' % col)
+                row += 1
     else:
         print('!Failed to query table %s because it does not exist.' % tbl_name)
 
