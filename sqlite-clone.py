@@ -183,7 +183,7 @@ def insert(query_string):
     if os.path.exists(tbl_path):
         with open(tbl_path, 'a+') as table_file:
             line = ' | '.join(values_lst)
-            table_file.write('\n%s' %line)  # append the line as a new row in the file
+            table_file.write('\n%s' % line)  # append the line as a new row in the file
             print('1 new record inserted.')
     else:
         print('!Failed to query table %s because it does not exist.' % tbl_name)
@@ -197,15 +197,20 @@ def update(query_string):
     """
     global DB_DIR, active_database
 
-    print('update query called with query_string = %s' %query_string)
+    print('update query called with query_string = %s' % query_string)
     update_regex = re.compile("^([a-zA-Z0-9_-]+) +SET +(.*) +WHERE +(.*)$", re.I)
     groups = update_regex.match(query_string).groups()
     tbl_name = groups[0].lower()
     kv_pairs_str = groups[1]
     condition = groups[2]
-    print('tbl_name = %s' %tbl_name)
-    print('kv_pairs_str = %s' %kv_pairs_str)
-    print('condition = %s' %condition)
+    print('tbl_name = %s' % tbl_name)
+    print('kv_pairs_str = %s' % kv_pairs_str)
+    print('condition = %s' % condition)
+    tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
+    if os.path.exists(tbl_path):
+        print('Opening file...')
+    else:
+        print('!Failed to query table %s because it does not exist.' % tbl_name)
 
 
 def alter(query_string):
