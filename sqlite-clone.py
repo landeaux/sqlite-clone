@@ -158,7 +158,11 @@ def select(query_string):
         if os.path.exists(tbl_path):
             if columns == '*':  # if selecting all columns
                 with open(tbl_path, 'r') as table_file:
-                    print(table_file.read())  # just print the whole file
+                    table_file.seek(0)  # make sure we're at beginning of file
+                    for line in table_file.readlines():
+                        # reformat comma-delimited line into ' | ' delimited output
+                        output = ' | '.join(line.split(','))
+                        print(output)
         else:
             print('!Failed to query table %s because it does not exist.' % tbl_name)
 
@@ -178,12 +182,12 @@ def insert(query_string):
     groups = insert_regex.match(query_string).groups()
     tbl_name = groups[0].lower()
     values_str = groups[1]
-    values_lst = re.sub(r"( |')", "", values_str).split(',')  # turn value string into list of values
+    values_lst = re.sub(r'[\'"]', '', values_str).split(',')  # strip all single & double quotes and split on ','
     values_lst = [el.strip() for el in values_lst]  # strip surrounding whitespace
     tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
     if os.path.exists(tbl_path):
         with open(tbl_path, 'a+') as table_file:
-            line = ' | '.join(values_lst)
+            line = ','.join(values_lst)  # rejoin value list as comma-delimited list
             table_file.write('\n%s' % line)  # append the line as a new row in the file
             print('1 new record inserted.')
     else:
@@ -216,7 +220,7 @@ def update(query_string):
             for line in table_file.readlines():
                 print('current line is %s' % line)
                 if row == 0:
-                    line_lst = line.split(' | ')
+                    line_lst = line.split(',')
                     print('line_lst =', line_lst)
                     for idx, val in enumerate(line_lst):
                         if re.match('^name .*$', val, re.I) is not None:
@@ -285,7 +289,7 @@ def alter_table_add_column(tbl_path, column):
     column -- The column to add to the table
     """
     with open(tbl_path, 'a') as table_file:
-        table_file.write(' | %s' % column)  # append the column to the file header
+        table_file.write(',%s' % column)  # append the column to the file header
 
 
 def create_database(db_name):
@@ -324,7 +328,7 @@ def create_table(query_string):
         schema = groups[1]  # store the schema (i.e. the columns and their data types)
         col_list = schema.split(',')  # split string up by column
         col_list = [col.strip() for col in col_list]  # strip surrounding whitespace
-        col_str = join_l(col_list, ' | ')  # join list into string with sep " | "
+        col_str = join_l(col_list, ',')  # join list into string with sep ","
         with open(tbl_path, 'w') as tbl_file:
             tbl_file.write(col_str)  # write the first line as the columns of the table
 
