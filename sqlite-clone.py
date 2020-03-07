@@ -7,10 +7,10 @@
 # History:
 # - Completed implementation of all metadata functionality (e.g. creating and
 #   dropping databases and tables, using, altering, and querying tables, etc.)
-
 import os  # for writing directories and files
 import shutil  # for writing directories and files
 import re  # for using regular expressions
+import csv  # for working with comma-delimited files
 
 # Global Constants
 
@@ -51,6 +51,23 @@ def join_l(l, sep):
     for i in li:
         string += str(sep) + str(i)
     return string
+
+
+def parse_kv_pair_str(kv_pair_str):
+    """
+    Parses a key value pair string (e.g. "key1 = val1, key2 = val2, ...") into a
+    dictionary
+
+    kv_pair_str -- The string of key value pairs to parse
+
+    Returns a dictionary of key value pairs
+    """
+    print('parse_kv_pair_str called with kv_pair_str = "%s"' % kv_pair_str)
+    kv_pairs_lst = kv_pair_str.split(',')  # split the string on commas
+    kv_pairs_lst = [pair.strip() for pair in kv_pairs_lst]  # strip surrounding whitespace
+    kv_pairs_lst = [re.sub('[\'"]', '', pair) for pair in kv_pairs_lst]  # remove quotation marks
+    kv_tuples_lst = [tuple(re.split(' *= *', pair)) for pair in kv_pairs_lst]
+    return {key: value for (key, value) in kv_tuples_lst}
 
 
 # dot-command functions
@@ -204,31 +221,27 @@ def update(query_string):
     """
     global DB_DIR, active_database
 
-    print('update query called with query_string = %s' % query_string)
+    print('update query called with query_string = "%s"' % query_string)
     update_regex = re.compile("^([a-zA-Z0-9_-]+) +SET +(.*) +WHERE +(.*)$", re.I)
     groups = update_regex.match(query_string).groups()
     tbl_name = groups[0].lower()
     kv_pairs_str = groups[1]
     condition = groups[2]
-    print('tbl_name = %s' % tbl_name)
-    print('kv_pairs_str = %s' % kv_pairs_str)
-    print('condition = %s' % condition)
+    print('tbl_name: "%s"' % tbl_name)
+    print('kv_pairs_str: "%s"' % kv_pairs_str)
+    print('condition: "%s"' % condition)
+    kv_dict = parse_kv_pair_str(kv_pairs_str)
+    print(kv_dict)
     tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
     if os.path.exists(tbl_path):
         with open(tbl_path, 'r') as table_file:
-            table_file.seek(0)
-            col = -1
-            row = 0
-            for line in table_file.readlines():
-                print('current line is %s' % line)
-                if row == 0:
-                    line_lst = line.split(',')
-                    print('line_lst =', line_lst)
-                    for idx, val in enumerate(line_lst):
-                        if re.match('^name .*$', val, re.I) is not None:
-                            col = idx
-                    print('column found at idx = %s' % col)
-                row += 1
+            tbl_reader = csv.reader(table_file)
+            for row in tbl_reader:
+                print('row:', row)
+                for col in range(len(row)):
+                    print('col: %i' % col)
+                    print('row[%i]:' % col, row[col])
+
             table_file.close()
     else:
         print('!Failed to query table %s because it does not exist.' % tbl_name)
