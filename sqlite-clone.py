@@ -179,6 +179,7 @@ def insert(query_string):
     tbl_name = groups[0].lower()
     values_str = groups[1]
     values_lst = re.sub(r"( |')", "", values_str).split(',')  # turn value string into list of values
+    values_lst = [el.strip() for el in values_lst]  # strip surrounding whitespace
     tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
     if os.path.exists(tbl_path):
         with open(tbl_path, 'a+') as table_file:
