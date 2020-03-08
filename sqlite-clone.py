@@ -18,7 +18,7 @@ import csv  # for working with comma-delimited files
 DB_DIR = 'dbs'
 INIT_DB = 'main'
 DOT_COMMAND_REGEX = re.compile('^\.([a-z]*) *$', re.I)
-QUERY_COMMAND_REGEX = re.compile('^(CREATE|DROP|USE|SELECT|ALTER|INSERT|UPDATE) *([^;]*)[ ;]*|^[ ;]*(;)$', re.I)
+QUERY_COMMAND_REGEX = re.compile('^(CREATE|DROP|USE|SELECT|ALTER|INSERT|UPDATE|DELETE) *([^;]*)[ ;]*|^[ ;]*(;)$', re.I)
 
 # Global vars
 
@@ -275,7 +275,7 @@ def update(query_string):
         model = []
 
         # Read the header to determine the table model for casting values to the
-        # approprate data type
+        # appropriate data type
         with open(tbl_path, 'r') as table_file:
             cast_func = {
                 'int': int,
@@ -300,9 +300,8 @@ def update(query_string):
                 })
             table_file.close()
 
-        # Generate a list of tuples where each tuple is (key, value, column) of
-        # each key/value pair in the SET clause of the query and the column
-        # number the key relates to.
+        # Using the key/value pairs given in the SET clause, find the columns
+        # numbers they correspond to and add them to each dictionary
         with open(tbl_path, 'r') as table_file:
             table_file.seek(0)  # make sure we're at beginning of file
             header = table_file.readline()
@@ -313,10 +312,9 @@ def update(query_string):
                     set_dicts[idx]['col'] = col_names.index(dict['key'])
             table_file.close()
 
-        # Generate a list of tuples where each tuple is
-        # (key, operator, value, column, validator) for each key/operator/value
-        # group in the WHERE clause of the query, the column it relates to, and
-        # a validator function.
+        # Using the key from the key/operator/value group from the WHERE clause
+        # of the query, find the column it relates to and add it, along with a
+        # validator function, to the dict containing it.
         with open(tbl_path, 'r') as table_file:
             table_file.seek(0)  # make sure we're at beginning of file
             header = table_file.readline()
@@ -355,6 +353,15 @@ def update(query_string):
             table_file.close()
     else:
         print('!Failed to query table %s because it does not exist.' % tbl_name)
+
+
+def delete(query_string):
+    """
+    Initiates a DELETE command
+
+    :param query_string: the remaining query after the DELETE keyword
+    """
+    print('delete called with query_string = "%s"' % query_string)
 
 
 def alter(query_string):
@@ -517,7 +524,8 @@ query_commands = {
     'select': select,
     'alter': alter,
     'insert': insert,
-    'update': update
+    'update': update,
+    'delete': delete
 }
 
 # Program start
