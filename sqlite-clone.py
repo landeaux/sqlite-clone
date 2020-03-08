@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Programming Assignment 1 - Metadata Management
+# Programming Assignment 2 - Data Manipulation
 #
 # Author: Adam Landis
 # Date: 03/12/2020
