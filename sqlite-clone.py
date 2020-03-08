@@ -56,19 +56,19 @@ def join_l(l, sep):
 
 def parse_kv_pair_str(kv_pair_str):
     """
-    Parses a key value pair string (e.g. "key1 = val1, key2 = val2, ...") into a
-    dictionary
+    Parses a key/value pair string (e.g. "key1 = val1, key2 = val2, ...") into
+    a list of dictionaries consisting of each key/value pair.
 
     kv_pair_str -- The string of key value pairs to parse
 
-    Returns a dictionary of key value pairs
+    Returns a list dictionaries consisting of the key value pairs
     """
     print('parse_kv_pair_str called with kv_pair_str = "%s"' % kv_pair_str)
     kv_pairs_lst = kv_pair_str.split(',')  # split the string on commas
     kv_pairs_lst = [pair.strip() for pair in kv_pairs_lst]  # strip surrounding whitespace
     kv_pairs_lst = [re.sub('[\'"]', '', pair) for pair in kv_pairs_lst]  # remove quotation marks
     kv_tuples_lst = [tuple(re.split(' *= *', pair)) for pair in kv_pairs_lst]
-    return {key: value for (key, value) in kv_tuples_lst}
+    return [{'key': key, 'value': value} for (key, value) in kv_tuples_lst]
 
 
 def parse_where_clause(clause):
@@ -262,48 +262,61 @@ def update(query_string):
     """
     global DB_DIR, active_database
 
-    print('update query called with query_string = "%s"' % query_string)
     update_regex = re.compile("^([a-zA-Z0-9_-]+) +SET +(.*) +WHERE +(.*)$", re.I)
     groups = update_regex.match(query_string).groups()
     tbl_name = groups[0].lower()
     kv_pairs_str = groups[1]
     condition_str = groups[2]
-    print('tbl_name: "%s"' % tbl_name)
-    print('kv_pairs_str: "%s"' % kv_pairs_str)
-    print('condition: "%s"' % condition_str)
-    kv_dict = parse_kv_pair_str(kv_pairs_str)
-    cond_dict = parse_where_clause(condition_str)
-    print(kv_dict)
+    set_dicts = parse_kv_pair_str(kv_pairs_str)
+    where_dict = parse_where_clause(condition_str)
     tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
     if os.path.exists(tbl_path):
         new_rows = []
+
+        # Generate a list of tuples where each tuple is (key, value, column) of
+        # each key/value pair in the SET clause of the query and the column
+        # number the key relates to.
         with open(tbl_path, 'r') as table_file:
+            table_file.seek(0)  # make sure we're at beginning of file
+            header = table_file.readline()
+            col_names = [col.split(' ', 1)[0] for col in header.split(',')]
+            for idx, dict in enumerate(set_dicts):
+                set_dicts[idx]['col'] = None
+                if dict['key'] in col_names:
+                    set_dicts[idx]['col'] = col_names.index(dict['key'])
+            table_file.close()
+
+        # Generate a list of tuples where each tuple is
+        # (key, operator, value, column, validator) for each key/operator/value
+        # group in the WHERE clause of the query, the column it relates to, and
+        # a validator function.
+        with open(tbl_path, 'r') as table_file:
+            table_file.seek(0)  # make sure we're at beginning of file
+            header = table_file.readline()
+            col_names = [col.split(' ', 1)[0] for col in header.split(',')]
+            where_dict['col'] = None
+            if where_dict['key'] in col_names:
+                where_dict['col'] = col_names.index(where_dict['key'])
+            table_file.close()
+
+        # Update the rows which match the WHERE clause and columns defined by
+        # SET clause of the query.
+        with open(tbl_path, 'r') as table_file:
+            table_file.seek(0)  # make sure we're at beginning of file
             tbl_reader = csv.reader(table_file)
             row_num = 0
-            col_indices = []
             for row in tbl_reader:
-                print('row:', row)
-                if row_num == 0:  # header row
-                    new_rows.append(row)
-                    for idx, key in enumerate(kv_dict.keys()):
-                        print('idx:', idx)
-                        print('key:', key)
-                        col_indices.append(None)
-                        for col in range(len(row)):
-                            if col not in col_indices:
-                                if re.match('^' + key + ' +', row[col], re.I):
-                                    col_indices[idx] = col
-                    print('col indices found:', col_indices)
-                else:
-                    for idx, val in enumerate(kv_dict.values()):
-                        new_row = row
-                        lhs = row[col_indices[idx]]
-                        rhs = cond_dict['value']
-                        if cond_func(cond_dict['operator'])(lhs, rhs):
-                            new_row[col_indices[idx]] = val
-                        new_rows.append(new_row)
+                if row_num > 0:  # not the header row
+                    new_row = row.copy()
+                    col = where_dict['col']
+                    validator = cond_func(where_dict['operator'])
+                    lhs = row[col]
+                    rhs = where_dict['value']
+                    if validator(lhs, rhs):
+                        for dict in set_dicts:
+                            new_row[dict['col']] = dict['value']
+                    new_rows.append(new_row)
                 row_num += 1
-
             table_file.close()
         with open(tbl_path, 'w') as table_file:
             table_writer = csv.writer(table_file)
