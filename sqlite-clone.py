@@ -361,16 +361,10 @@ def update(query_string):
                 set_dicts[idx]['col'] = col_names.index(dict['key'])
 
         # Using the key from the key/operator/value group from the WHERE clause
-        # of the query, find the column it relates to and add it, along with a
-        # validator function, to the dict containing it.
-        with open(tbl_path, 'r') as table_file:
-            table_file.seek(0)  # make sure we're at beginning of file
-            header = table_file.readline()
-            col_names = [col.split(' ', 1)[0] for col in header.split(',')]
-            where_dict['col'] = None
-            if where_dict['key'] in col_names:
-                where_dict['col'] = col_names.index(where_dict['key'])
-            table_file.close()
+        # of the query, find the column it relates to and add it
+        where_dict['col'] = None
+        if where_dict['key'] in col_names:
+            where_dict['col'] = col_names.index(where_dict['key'])
 
         # Update the rows which match the WHERE clause and columns defined by
         # SET clause of the query.
