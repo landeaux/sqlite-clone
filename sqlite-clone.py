@@ -63,7 +63,6 @@ def parse_kv_pair_str(kv_pair_str):
 
     Returns a list dictionaries consisting of the key value pairs
     """
-    print('parse_kv_pair_str called with kv_pair_str = "%s"' % kv_pair_str)
     kv_pairs_lst = kv_pair_str.split(',')  # split the string on commas
     kv_pairs_lst = [pair.strip() for pair in kv_pairs_lst]  # strip surrounding whitespace
     kv_pairs_lst = [re.sub('[\'"]', '', pair) for pair in kv_pairs_lst]  # remove quotation marks
@@ -352,9 +351,11 @@ def update(query_string):
         header = read_header_from(tbl_name)
         model = extract_model_from(header)
 
+        # Extract just the column names from the model
+        col_names = [item['col_name'] for item in model]
+
         # Using the key/value pairs given in the SET clause, find the column
         # numbers they correspond to and add them to each dictionary
-        col_names = [item['col_name'] for item in model]
         for idx, dict in enumerate(set_dicts):
             set_dicts[idx]['col'] = None
             if dict['key'] in col_names:
@@ -403,7 +404,57 @@ def delete(query_string):
 
     :param query_string: the remaining query after the DELETE keyword
     """
-    print('delete called with query_string = "%s"' % query_string)
+    global DB_DIR, active_database
+
+    delete_regex = re.compile('^FROM ([a-z0-9_-]+) WHERE (.+)$', re.I)
+    groups = delete_regex.match(query_string).groups()
+    tbl_name = groups[0].lower()
+    where_clause = groups[1]
+    where_dict = parse_where_clause(where_clause)
+    tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
+    if os.path.exists(tbl_path):
+        new_rows = []
+
+        # Read the header to determine the table model for casting values to the
+        # appropriate data type
+        header = read_header_from(tbl_name)
+        model = extract_model_from(header)
+
+        # Extract just the column names from the model
+        col_names = [item['col_name'] for item in model]
+
+        # Using the key from the key/operator/value group from the WHERE clause
+        # of the query, find the column it relates to and add it
+        where_dict['col'] = None
+        if where_dict['key'] in col_names:
+            where_dict['col'] = col_names.index(where_dict['key'])
+
+        # Only keep the rows which don't match the WHERE clause
+        with open(tbl_path, 'r') as table_file:
+            table_file.seek(0)  # make sure we're at beginning of file
+            tbl_reader = csv.reader(table_file)
+            row_num = 0
+            for row in tbl_reader:
+                if row_num == 0:  # header row
+                    new_rows.append(row.copy())
+                else:
+                    new_row = row.copy()
+                    col = where_dict['col']
+                    validator = cond_func(where_dict['operator'])
+                    cast_func = model[int(col)]['cast']
+                    lhs = cast_func(row[col])
+                    rhs = cast_func(where_dict['value'])
+                    if validator(lhs, rhs) is False:
+                        new_rows.append(new_row)
+                row_num += 1
+            table_file.close()
+        with open(tbl_path, 'w') as table_file:
+            table_writer = csv.writer(table_file)
+            for row in new_rows:
+                table_writer.writerow(row)
+            table_file.close()
+    else:
+        print('!Failed to query table %s because it does not exist.' % tbl_name)
 
 
 def alter(query_string):
