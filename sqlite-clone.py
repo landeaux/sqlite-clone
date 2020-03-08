@@ -290,10 +290,9 @@ def select(query_string):
             if columns == '*':  # if selecting all columns
                 with open(tbl_path, 'r') as table_file:
                     table_file.seek(0)  # make sure we're at beginning of file
-                    for line in table_file.readlines():
-                        # reformat comma-delimited line into ' | ' delimited output
-                        output = ' | '.join(line.split(',')).strip('\n')
-                        print(output)
+                    tbl_reader = csv.reader(table_file)
+                    for row in tbl_reader:
+                        print(' | '.join(row))
                     table_file.close()
         else:
             print('!Failed to query table %s because it does not exist.' % tbl_name)
