@@ -349,7 +349,8 @@ def update(query_string):
 
         # Read the header to determine the table model for casting values to the
         # appropriate data type
-        model = extract_model_from(read_header_from(tbl_name))
+        header = read_header_from(tbl_name)
+        model = extract_model_from(header)
 
         # Using the key/value pairs given in the SET clause, find the columns
         # numbers they correspond to and add them to each dictionary
