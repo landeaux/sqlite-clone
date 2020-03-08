@@ -86,6 +86,79 @@ def parse_where_clause(clause):
     }
 
 
+def read_header_from(table):
+    """
+    Reads the header from the given table and returns it as a string. If the
+    file doesn't exist, returns an empty string.
+
+    :param table: The name of the table to read the header from
+    :return: The table header as a string, or empty string file doesn't exist
+    """
+    global DB_DIR, active_database
+    try:
+        assert len(table) > 0
+    except AssertionError:
+        print('ERROR: table argument must not be empty!')
+        return ''
+    tbl_path = os.path.join(DB_DIR, active_database, table)
+    header = ''
+    if os.path.exists(tbl_path):
+        with open(tbl_path, 'r') as table_file:
+            table_file.seek(0)  # make sure we're at beginning of file
+            header = table_file.readline().strip('\n')
+            try:
+                assert len(header) > 0
+            except AssertionError:
+                print('ERROR: table header is empty!')
+            table_file.close()
+            return header
+    print('Error: Table "%s" doesn\'t exist!' % table)
+    return ''
+
+
+def extract_model_from(header):
+    """
+    Extracts the model from a given table header
+
+    :param header: The table header to extract the model from (string)
+    :return: A list of dicts representing the table model
+    """
+    try:
+        assert len(header) > 0
+    except AssertionError:
+        print('ERROR: header must not be empty!')
+        return []
+    model = []
+    cast_func = {
+        'int': int,
+        'float': float,
+        'double': float,
+        'varchar': str,
+        'char': str,
+        'bool': bool,
+        'boolean': bool
+    }
+    for col in header.split(','):
+        try:
+            col_split = col.split(' ', 1)
+            col_name = col_split[0]
+            data_type = col_split[1].split('(')[0]
+        except IndexError:
+            print('ERROR: header is not in proper format!')
+            return []
+        try:
+            cast = cast_func[data_type]
+        except KeyError:
+            print('ERROR: cast function not found for data_type "%s"!' % data_type)
+            return []
+        model.append({
+            'col_name': col_name,
+            'data_type': data_type,
+            'cast': cast
+        })
+    return model
+
+
 def cond_func(operator):
     """
     Returns the appropriate condition function given the operator in a WHERE
@@ -241,7 +314,8 @@ def insert(query_string):
     groups = insert_regex.match(query_string).groups()
     tbl_name = groups[0].lower()
     values_str = groups[1]
-    values_lst = re.sub(r'[\'"]', '', values_str).split(',')  # strip all single & double quotes and split on ','
+    # strip all single & double quotes and split on ','
+    values_lst = re.sub(r'[\'"]', '', values_str).split(',')
     values_lst = [el.strip() for el in values_lst]  # strip surrounding whitespace
     tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
     if os.path.exists(tbl_path):
@@ -277,6 +351,8 @@ def update(query_string):
         # Read the header to determine the table model for casting values to the
         # appropriate data type
         with open(tbl_path, 'r') as table_file:
+            table_file.seek(0)  # make sure we're at beginning of file
+            header = table_file.readline()
             cast_func = {
                 'int': int,
                 'float': float,
@@ -286,8 +362,6 @@ def update(query_string):
                 'bool': bool,
                 'boolean': bool
             }
-            table_file.seek(0)  # make sure we're at beginning of file
-            header = table_file.readline()
             for col in header.split(','):
                 col_split = col.split(' ', 1)
                 col_name = col_split[0]
