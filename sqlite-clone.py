@@ -346,33 +346,10 @@ def update(query_string):
     tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
     if os.path.exists(tbl_path):
         new_rows = []
-        model = []
 
         # Read the header to determine the table model for casting values to the
         # appropriate data type
-        with open(tbl_path, 'r') as table_file:
-            table_file.seek(0)  # make sure we're at beginning of file
-            header = table_file.readline()
-            cast_func = {
-                'int': int,
-                'float': float,
-                'double': float,
-                'varchar': str,
-                'char': str,
-                'bool': bool,
-                'boolean': bool
-            }
-            for col in header.split(','):
-                col_split = col.split(' ', 1)
-                col_name = col_split[0]
-                data_type = col_split[1].split('(')[0].strip('\n')
-                cast = cast_func[data_type]
-                model.append({
-                    'col_name': col_name,
-                    'data_type': data_type,
-                    'cast': cast
-                })
-            table_file.close()
+        model = extract_model_from(read_header_from(tbl_name))
 
         # Using the key/value pairs given in the SET clause, find the columns
         # numbers they correspond to and add them to each dictionary
