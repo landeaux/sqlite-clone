@@ -272,6 +272,33 @@ def update(query_string):
     tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
     if os.path.exists(tbl_path):
         new_rows = []
+        model = []
+
+        # Read the header to determine the table model for casting values to the
+        # approprate data type
+        with open(tbl_path, 'r') as table_file:
+            cast_func = {
+                'int': int,
+                'float': float,
+                'double': float,
+                'varchar': str,
+                'char': str,
+                'bool': bool,
+                'boolean': bool
+            }
+            table_file.seek(0)  # make sure we're at beginning of file
+            header = table_file.readline()
+            for col in header.split(','):
+                col_split = col.split(' ', 1)
+                col_name = col_split[0]
+                data_type = col_split[1].split('(')[0].strip('\n')
+                cast = cast_func[data_type]
+                model.append({
+                    'col_name': col_name,
+                    'data_type': data_type,
+                    'cast': cast
+                })
+            table_file.close()
 
         # Generate a list of tuples where each tuple is (key, value, column) of
         # each key/value pair in the SET clause of the query and the column
@@ -306,12 +333,15 @@ def update(query_string):
             tbl_reader = csv.reader(table_file)
             row_num = 0
             for row in tbl_reader:
-                if row_num > 0:  # not the header row
+                if row_num == 0:  # header row
+                    new_rows.append(row.copy())
+                else:
                     new_row = row.copy()
                     col = where_dict['col']
                     validator = cond_func(where_dict['operator'])
-                    lhs = row[col]
-                    rhs = where_dict['value']
+                    cast_func = model[col]['cast']
+                    lhs = cast_func(row[col])
+                    rhs = cast_func(where_dict['value'])
                     if validator(lhs, rhs):
                         for dict in set_dicts:
                             new_row[dict['col']] = dict['value']
