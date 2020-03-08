@@ -5,8 +5,9 @@
 # Author: Adam Landis
 # Date: 03/12/2020
 # History:
-# - 02/20/2020 -- Completed implementation of all metadata functionality (e.g. creating and
-#   dropping databases and tables, using, altering, and querying tables, etc.)
+# - 02/20/2020 -- Completed implementation of all metadata functionality (e.g.
+#   creating and dropping databases and tables, using, altering, and querying
+#   tables, etc.)
 
 import os  # for writing directories and files
 import shutil  # for writing directories and files
