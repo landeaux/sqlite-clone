@@ -71,6 +71,46 @@ def parse_kv_pair_str(kv_pair_str):
     return {key: value for (key, value) in kv_tuples_lst}
 
 
+def parse_where_clause(clause):
+    """
+    Parses a WHERE clause in a query string into a dictionary and returns it
+    :param clause: The portion of the query relating to the WHERE clause
+    :return: The dictionary containing the parsed WHERE clause
+    """
+    where_regex = re.compile('^(.*) +(=|>|<|>=|<=|<>|LIKE|IN|BETWEEN) +(.*)$', re.I)
+    groups = where_regex.match(clause).groups()
+    return {
+        'key': groups[0],
+        'operator': groups[1],
+        'value': re.sub('[\'"]', '', groups[2])  # strip away all quotes
+    }
+
+
+def cond_func(operator):
+    """
+    Returns the appropriate condition function given the operator in a WHERE
+    clause.
+
+    e.g. If a query contains the '... WHERE age <= 32 ...' Then, the '<=' would
+    be passed to this function and `lambda x, y: x <= y` would be returned for
+    use outside the function.
+
+    :param operator: A string representing the operator in the WHERE clause
+    :return: The condition function
+    """
+    return {
+        '=': lambda x, y: x == y,
+        '>': lambda x, y: x > y,
+        '<': lambda x, y: x < y,
+        '>=': lambda x, y: x >= y,
+        '<=': lambda x, y: x <= y,
+        '<>': lambda x, y: x != y,
+        'like': lambda x, y: False,  # todo need to implement LIKE lambda
+        'in': lambda x, y: False,  # todo need to implement IN lambda
+        'between': lambda x, y: False  # todo need to implement BETWEEN lambda
+    }[operator]
+
+
 # dot-command functions
 
 def exit_program():
@@ -227,11 +267,12 @@ def update(query_string):
     groups = update_regex.match(query_string).groups()
     tbl_name = groups[0].lower()
     kv_pairs_str = groups[1]
-    condition = groups[2]
+    condition_str = groups[2]
     print('tbl_name: "%s"' % tbl_name)
     print('kv_pairs_str: "%s"' % kv_pairs_str)
-    print('condition: "%s"' % condition)
+    print('condition: "%s"' % condition_str)
     kv_dict = parse_kv_pair_str(kv_pairs_str)
+    cond_dict = parse_where_clause(condition_str)
     print(kv_dict)
     tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
     if os.path.exists(tbl_path):
@@ -256,7 +297,10 @@ def update(query_string):
                 else:
                     for idx, val in enumerate(kv_dict.values()):
                         new_row = row
-                        new_row[col_indices[idx]] = val
+                        lhs = row[col_indices[idx]]
+                        rhs = cond_dict['value']
+                        if cond_func(cond_dict['operator'])(lhs, rhs):
+                            new_row[col_indices[idx]] = val
                         new_rows.append(new_row)
                 row_num += 1
 
