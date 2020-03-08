@@ -352,17 +352,13 @@ def update(query_string):
         header = read_header_from(tbl_name)
         model = extract_model_from(header)
 
-        # Using the key/value pairs given in the SET clause, find the columns
+        # Using the key/value pairs given in the SET clause, find the column
         # numbers they correspond to and add them to each dictionary
-        with open(tbl_path, 'r') as table_file:
-            table_file.seek(0)  # make sure we're at beginning of file
-            header = table_file.readline()
-            col_names = [col.split(' ', 1)[0] for col in header.split(',')]
-            for idx, dict in enumerate(set_dicts):
-                set_dicts[idx]['col'] = None
-                if dict['key'] in col_names:
-                    set_dicts[idx]['col'] = col_names.index(dict['key'])
-            table_file.close()
+        col_names = [item['col_name'] for item in model]
+        for idx, dict in enumerate(set_dicts):
+            set_dicts[idx]['col'] = None
+            if dict['key'] in col_names:
+                set_dicts[idx]['col'] = col_names.index(dict['key'])
 
         # Using the key from the key/operator/value group from the WHERE clause
         # of the query, find the column it relates to and add it, along with a
