@@ -380,6 +380,7 @@ def update(query_string):
     condition_str = groups[2]
     set_dicts = parse_kv_pair_str(kv_pairs_str)
     where_dict = parse_where_clause(condition_str)
+    count = 0  # for holding the number of records affected
     tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
     if os.path.exists(tbl_path):
         new_rows = []
@@ -422,6 +423,7 @@ def update(query_string):
                     lhs = cast_func(row[col])
                     rhs = cast_func(where_dict['value'])
                     if validator(lhs, rhs):
+                        count += 1
                         for dict in set_dicts:
                             new_row[dict['col']] = dict['value']
                     new_rows.append(new_row)
@@ -432,6 +434,7 @@ def update(query_string):
             for row in new_rows:
                 table_writer.writerow(row)
             table_file.close()
+        print('%i records modified.' % count)
     else:
         print('!Failed to query table %s because it does not exist.' % tbl_name)
 
@@ -449,7 +452,9 @@ def delete(query_string):
     tbl_name = groups[0].lower()
     where_clause = groups[1]
     where_dict = parse_where_clause(where_clause)
+    count = 0  # for holding the number of records affected
     tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
+
     if os.path.exists(tbl_path):
         new_rows = []
 
@@ -484,6 +489,8 @@ def delete(query_string):
                     rhs = cast_func(where_dict['value'])
                     if validator(lhs, rhs) is False:
                         new_rows.append(new_row)
+                    else:
+                        count += 1
                 row_num += 1
             table_file.close()
         with open(tbl_path, 'w') as table_file:
@@ -491,6 +498,7 @@ def delete(query_string):
             for row in new_rows:
                 table_writer.writerow(row)
             table_file.close()
+        print('%i records deleted.' % count)
     else:
         print('!Failed to query table %s because it does not exist.' % tbl_name)
 
