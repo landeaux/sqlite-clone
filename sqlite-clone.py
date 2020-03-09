@@ -282,18 +282,29 @@ def select(query_string):
 
     try:
         groups = select_regex.match(query_string).groups()
-        columns = groups[0].strip()  # grab only the columns we want to select
+        columns = [col.strip() for col in groups[0].split(',')]
         tbl_name = groups[1].strip().lower()  # grab table name and convert to lowercase
         tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
 
         if os.path.exists(tbl_path):
-            if columns == '*':  # if selecting all columns
-                with open(tbl_path, 'r') as table_file:
-                    table_file.seek(0)  # make sure we're at beginning of file
-                    tbl_reader = csv.reader(table_file)
-                    for row in tbl_reader:
-                        print(' | '.join(row))
-                    table_file.close()
+            header = read_header_from(tbl_name)
+            model = extract_model_from(header)
+            cols_to_select = []
+            if columns[0] is not '*':  # if not selecting all columns
+                col_names = [item['col_name'] for item in model]
+                for col_name in columns:
+                    if col_name in col_names:
+                        cols_to_select.append(col_names.index(col_name))
+            else:
+                cols_to_select = list(range(0, len(model)))
+
+            with open(tbl_path, 'r') as table_file:
+                table_file.seek(0)  # make sure we're at beginning of file
+                tbl_reader = csv.reader(table_file)
+                for row in tbl_reader:
+                    row_copy = [row[i] for i in cols_to_select]
+                    print(' | '.join(row_copy))
+                table_file.close()
         else:
             print('!Failed to query table %s because it does not exist.' % tbl_name)
 
