@@ -278,12 +278,15 @@ def select(query_string):
     """
     global DB_DIR, active_database
 
-    select_regex = re.compile('^([a-z0-9_*-, ]+) *FROM *([a-z0-9_-]+)$', re.I)
+    select_regex = re.compile('^([a-z0-9_*, -]+) +FROM +([a-z0-9_-]+)( +WHERE +(.+))?$', re.I)
 
     try:
         groups = select_regex.match(query_string).groups()
         columns = [col.strip() for col in groups[0].split(',')]
         tbl_name = groups[1].strip().lower()  # grab table name and convert to lowercase
+        if groups[2] is not None and groups[3] is not None:
+            print('WE HAVE A WHERE CLAUSE!!!')
+
         tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
 
         if os.path.exists(tbl_path):
