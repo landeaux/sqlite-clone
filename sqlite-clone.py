@@ -77,7 +77,7 @@ def parse_where_clause(clause):
     :param clause: The portion of the query relating to the WHERE clause
     :return: The dictionary containing the parsed WHERE clause
     """
-    where_regex = re.compile('^(.*) +(=|>|<|>=|<=|<>|LIKE|IN|BETWEEN) +(.*)$', re.I)
+    where_regex = re.compile('^(.*) +(=|>|<|>=|<=|<>|!=|LIKE|IN|BETWEEN) +(.*)$', re.I)
     groups = where_regex.match(clause).groups()
     return {
         'key': groups[0],
@@ -178,6 +178,7 @@ def cond_func(operator):
         '>=': lambda x, y: x >= y,
         '<=': lambda x, y: x <= y,
         '<>': lambda x, y: x != y,
+        '!=': lambda x, y: x != y,
         'like': lambda x, y: False,  # todo need to implement LIKE lambda
         'in': lambda x, y: False,  # todo need to implement IN lambda
         'between': lambda x, y: False  # todo need to implement BETWEEN lambda
@@ -284,29 +285,52 @@ def select(query_string):
         groups = select_regex.match(query_string).groups()
         columns = [col.strip() for col in groups[0].split(',')]
         tbl_name = groups[1].strip().lower()  # grab table name and convert to lowercase
-        if groups[2] is not None and groups[3] is not None:
-            print('WE HAVE A WHERE CLAUSE!!!')
+        query_has_where_clause = groups[2] is not None and groups[3] is not None
+        where_dict = {}
+        if query_has_where_clause:
+            where_dict = parse_where_clause(groups[3])
 
         tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
 
         if os.path.exists(tbl_path):
             header = read_header_from(tbl_name)
             model = extract_model_from(header)
+            col_names = [item['col_name'] for item in model]
             cols_to_select = []
+
             if columns[0] is not '*':  # if not selecting all columns
-                col_names = [item['col_name'] for item in model]
                 for col_name in columns:
                     if col_name in col_names:
                         cols_to_select.append(col_names.index(col_name))
             else:
                 cols_to_select = list(range(0, len(model)))
 
+            # Using the key from the key/operator/value group from the WHERE clause
+            # of the query, find the column it relates to and add it
+            if query_has_where_clause:
+                where_dict['col'] = None
+                if where_dict['key'] in col_names:
+                    where_dict['col'] = col_names.index(where_dict['key'])
+
             with open(tbl_path, 'r') as table_file:
                 table_file.seek(0)  # make sure we're at beginning of file
                 tbl_reader = csv.reader(table_file)
+                row_num = 0
                 for row in tbl_reader:
-                    row_copy = [row[i] for i in cols_to_select]
-                    print(' | '.join(row_copy))
+                    if row_num == 0 or not query_has_where_clause:  # header row
+                        row_copy = [row[i] for i in cols_to_select]
+                        print(' | '.join(row_copy))
+                    else:
+                        new_row = row.copy()
+                        col = where_dict['col']
+                        validator = cond_func(where_dict['operator'])
+                        cast_func = model[col]['cast']
+                        lhs = cast_func(row[col])
+                        rhs = cast_func(where_dict['value'])
+                        if validator(lhs, rhs):
+                            row_copy = [row[i] for i in cols_to_select]
+                            print(' | '.join(row_copy))
+                    row_num += 1
                 table_file.close()
         else:
             print('!Failed to query table %s because it does not exist.' % tbl_name)
