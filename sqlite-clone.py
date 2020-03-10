@@ -129,6 +129,8 @@ def extract_model_from(header):
         print('ERROR: header must not be empty!')
         return []
     model = []
+
+    # map data type names to their python cast function
     cast_func = {
         'int': int,
         'float': float,
@@ -138,16 +140,17 @@ def extract_model_from(header):
         'bool': bool,
         'boolean': bool
     }
+
     for col in header.split(','):
         try:
-            col_split = col.split(' ', 1)
+            col_split = col.split(' ', 1)  # 'name varchar(20)' => ['name', 'varchar(20)']
             col_name = col_split[0]
-            data_type = col_split[1].split('(')[0]
+            data_type = col_split[1].split('(')[0]  # [..., 'varchar(20)'] => 'varchar'
         except IndexError:
             print('ERROR: header is not in proper format!')
             return []
         try:
-            cast = cast_func[data_type]
+            cast = cast_func[data_type]  # get the cast function based on the data type
         except KeyError:
             print('ERROR: cast function not found for data_type "%s"!' % data_type)
             return []
@@ -295,14 +298,15 @@ def select(query_string):
         if os.path.exists(tbl_path):
             header = read_header_from(tbl_name)
             model = extract_model_from(header)
-            col_names = [item['col_name'] for item in model]
+            col_names = [item['col_name'] for item in model]  # extract just the column names
             cols_to_select = []
 
+            # figure out what column numbers to select given the query and the table model
             if columns[0] is not '*':  # if not selecting all columns
                 for col_name in columns:
                     if col_name in col_names:
                         cols_to_select.append(col_names.index(col_name))
-            else:
+            else:  # select all columns
                 cols_to_select = list(range(0, len(model)))
 
             # Using the key from the key/operator/value group from the WHERE clause
@@ -317,17 +321,24 @@ def select(query_string):
                 tbl_reader = csv.reader(table_file)
                 row_num = 0
                 for row in tbl_reader:
-                    if row_num == 0 or not query_has_where_clause:  # header row
+                    if row_num == 0 or not query_has_where_clause:
+                        # if we are on the header row, or there is no WHERE clause
+                        # then we don't need to do any conditional checking -- just
+                        # select the request columns
                         row_copy = [row[i] for i in cols_to_select]
                         print(' | '.join(row_copy))
                     else:
+                        # we are on row data and we have a WHERE clause, so use
+                        # the data from the WHERE clause (in where_dict), the columns
+                        # to check the condition on, and apply the right validator
+                        # function based on the operator.
                         new_row = row.copy()
                         col = where_dict['col']
                         validator = cond_func(where_dict['operator'])
                         cast_func = model[col]['cast']
                         lhs = cast_func(row[col])
                         rhs = cast_func(where_dict['value'])
-                        if validator(lhs, rhs):
+                        if validator(lhs, rhs):  # if WHERE condition applies
                             row_copy = [row[i] for i in cols_to_select]
                             print(' | '.join(row_copy))
                     row_num += 1
@@ -418,17 +429,20 @@ def update(query_string):
                 else:
                     new_row = row.copy()
                     col = where_dict['col']
+                    # The operator in the WHERE clause determines the validator func to use
                     validator = cond_func(where_dict['operator'])
                     cast_func = model[col]['cast']
                     lhs = cast_func(row[col])
                     rhs = cast_func(where_dict['value'])
-                    if validator(lhs, rhs):
+                    if validator(lhs, rhs):  # if WHERE condition applies
                         count += 1
                         for dict in set_dicts:
                             new_row[dict['col']] = dict['value']
                     new_rows.append(new_row)
                 row_num += 1
             table_file.close()
+
+        # Overwrite the file with the updated rows
         with open(tbl_path, 'w') as table_file:
             table_writer = csv.writer(table_file)
             for row in new_rows:
@@ -487,12 +501,16 @@ def delete(query_string):
                     cast_func = model[int(col)]['cast']
                     lhs = cast_func(row[col])
                     rhs = cast_func(where_dict['value'])
+                    
+                    # Only keep rows which don't meed the WHERE condition
                     if validator(lhs, rhs) is False:
                         new_rows.append(new_row)
                     else:
                         count += 1
                 row_num += 1
             table_file.close()
+
+        # Overwrite the file with the new subset of rows
         with open(tbl_path, 'w') as table_file:
             table_writer = csv.writer(table_file)
             for row in new_rows:
