@@ -501,7 +501,7 @@ def delete(query_string):
                     cast_func = model[int(col)]['cast']
                     lhs = cast_func(row[col])
                     rhs = cast_func(where_dict['value'])
-                    
+
                     # Only keep rows which don't meed the WHERE condition
                     if validator(lhs, rhs) is False:
                         new_rows.append(new_row)
