@@ -1,23 +1,25 @@
 #!/usr/bin/env python3
 
-# Programming Assignment 1 - Metadata Management
+# Programming Assignment 2 - Data Manipulation
 #
 # Author: Adam Landis
-# Date: 02/20/2020
+# Date: 03/12/2020
 # History:
-# - Completed implementation of all metadata functionality (e.g. creating and
-#   dropping databases and tables, using, altering, and querying tables, etc.)
+# - 02/20/2020 -- Completed implementation of all metadata functionality (e.g.
+#   creating and dropping databases and tables, using, altering, and querying
+#   tables, etc.)
 
 import os  # for writing directories and files
 import shutil  # for writing directories and files
 import re  # for using regular expressions
+import csv  # for working with comma-delimited files
 
 # Global Constants
 
 DB_DIR = 'dbs'
 INIT_DB = 'main'
 DOT_COMMAND_REGEX = re.compile('^\.([a-z]*) *$', re.I)
-QUERY_COMMAND_REGEX = re.compile('^(CREATE|DROP|USE|SELECT|ALTER) *([^;]*)[ ;]*|^[ ;]*(;)$', re.I)
+QUERY_COMMAND_REGEX = re.compile('^(CREATE|DROP|USE|SELECT|ALTER|INSERT|UPDATE|DELETE) *([^;]*)[ ;]*|^[ ;]*(;)$', re.I)
 
 # Global vars
 
@@ -51,6 +53,139 @@ def join_l(l, sep):
     for i in li:
         string += str(sep) + str(i)
     return string
+
+
+def parse_kv_pair_str(kv_pair_str):
+    """
+    Parses a key/value pair string (e.g. "key1 = val1, key2 = val2, ...") into
+    a list of dictionaries consisting of each key/value pair.
+
+    kv_pair_str -- The string of key value pairs to parse
+
+    Returns a list dictionaries consisting of the key value pairs
+    """
+    kv_pairs_lst = kv_pair_str.split(',')  # split the string on commas
+    kv_pairs_lst = [pair.strip() for pair in kv_pairs_lst]  # strip surrounding whitespace
+    kv_pairs_lst = [re.sub('[\'"]', '', pair) for pair in kv_pairs_lst]  # remove quotation marks
+    kv_tuples_lst = [tuple(re.split(' *= *', pair)) for pair in kv_pairs_lst]
+    return [{'key': key, 'value': value} for (key, value) in kv_tuples_lst]
+
+
+def parse_where_clause(clause):
+    """
+    Parses a WHERE clause in a query string into a dictionary and returns it
+    :param clause: The portion of the query relating to the WHERE clause
+    :return: The dictionary containing the parsed WHERE clause
+    """
+    where_regex = re.compile('^(.*) +(=|>|<|>=|<=|<>|!=|LIKE|IN|BETWEEN) +(.*)$', re.I)
+    groups = where_regex.match(clause).groups()
+    return {
+        'key': groups[0],
+        'operator': groups[1],
+        'value': re.sub('[\'"]', '', groups[2])  # strip away all quotes
+    }
+
+
+def read_header_from(table):
+    """
+    Reads the header from the given table and returns it as a string. If the
+    file doesn't exist, returns an empty string.
+
+    :param table: The name of the table to read the header from
+    :return: The table header as a string, or empty string file doesn't exist
+    """
+    global DB_DIR, active_database
+    try:
+        assert len(table) > 0
+    except AssertionError:
+        print('ERROR: table argument must not be empty!')
+        return ''
+    tbl_path = os.path.join(DB_DIR, active_database, table)
+    header = ''
+    if os.path.exists(tbl_path):
+        with open(tbl_path, 'r') as table_file:
+            table_file.seek(0)  # make sure we're at beginning of file
+            header = table_file.readline().strip('\n')
+            try:
+                assert len(header) > 0
+            except AssertionError:
+                print('ERROR: table header is empty!')
+            table_file.close()
+            return header
+    print('Error: Table "%s" doesn\'t exist!' % table)
+    return ''
+
+
+def extract_model_from(header):
+    """
+    Extracts the model from a given table header
+
+    :param header: The table header to extract the model from (string)
+    :return: A list of dicts representing the table model
+    """
+    try:
+        assert len(header) > 0
+    except AssertionError:
+        print('ERROR: header must not be empty!')
+        return []
+    model = []
+
+    # map data type names to their python cast function
+    cast_func = {
+        'int': int,
+        'float': float,
+        'double': float,
+        'varchar': str,
+        'char': str,
+        'bool': bool,
+        'boolean': bool
+    }
+
+    for col in header.split(','):
+        try:
+            col_split = col.split(' ', 1)  # 'name varchar(20)' => ['name', 'varchar(20)']
+            col_name = col_split[0]
+            data_type = col_split[1].split('(')[0]  # [..., 'varchar(20)'] => 'varchar'
+        except IndexError:
+            print('ERROR: header is not in proper format!')
+            return []
+        try:
+            cast = cast_func[data_type]  # get the cast function based on the data type
+        except KeyError:
+            print('ERROR: cast function not found for data_type "%s"!' % data_type)
+            return []
+        model.append({
+            'col_name': col_name,
+            'data_type': data_type,
+            'cast': cast
+        })
+    return model
+
+
+def cond_func(operator):
+    """
+    Returns the appropriate condition function given the operator in a WHERE
+    clause.
+
+    e.g. If a query contains the '... WHERE age <= 32 ...' Then, the '<=' would
+    be passed to this function and `lambda x, y: x <= y` would be returned for
+    use outside the function.
+
+    :param operator: A string representing the operator in the WHERE clause
+    :return: The condition function
+    """
+    return {
+        '=': lambda x, y: x == y,
+        '>': lambda x, y: x > y,
+        '<': lambda x, y: x < y,
+        '>=': lambda x, y: x >= y,
+        '<=': lambda x, y: x <= y,
+        '<>': lambda x, y: x != y,
+        '!=': lambda x, y: x != y,
+        'like': lambda x, y: False,  # todo need to implement LIKE lambda
+        'in': lambda x, y: False,  # todo need to implement IN lambda
+        'between': lambda x, y: False  # todo need to implement BETWEEN lambda
+    }[operator]
 
 
 # dot-command functions
@@ -147,23 +282,243 @@ def select(query_string):
     """
     global DB_DIR, active_database
 
-    select_regex = re.compile('^([a-z0-9_*-, ]+) *FROM *([a-z0-9_-]+)$', re.I)
+    select_regex = re.compile('^([a-z0-9_*, -]+) +FROM +([a-z0-9_-]+)( +WHERE +(.+))?$', re.I)
 
     try:
         groups = select_regex.match(query_string).groups()
-        columns = groups[0].strip()  # grab only the columns we want to select
-        tbl_name = groups[1].strip()  # grab just the table name from the query
+        columns = [col.strip() for col in groups[0].split(',')]
+        tbl_name = groups[1].strip().lower()  # grab table name and convert to lowercase
+        query_has_where_clause = groups[2] is not None and groups[3] is not None
+        where_dict = {}
+        if query_has_where_clause:
+            where_dict = parse_where_clause(groups[3])
+
         tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
 
         if os.path.exists(tbl_path):
-            if columns == '*':  # if selecting all columns
-                with open(tbl_path, 'r') as table_file:
-                    print(table_file.read())  # just print the whole file
+            header = read_header_from(tbl_name)
+            model = extract_model_from(header)
+            col_names = [item['col_name'] for item in model]  # extract just the column names
+            cols_to_select = []
+
+            # figure out what column numbers to select given the query and the table model
+            if columns[0] is not '*':  # if not selecting all columns
+                for col_name in columns:
+                    if col_name in col_names:
+                        cols_to_select.append(col_names.index(col_name))
+            else:  # select all columns
+                cols_to_select = list(range(0, len(model)))
+
+            # Using the key from the key/operator/value group from the WHERE clause
+            # of the query, find the column it relates to and add it
+            if query_has_where_clause:
+                where_dict['col'] = None
+                if where_dict['key'] in col_names:
+                    where_dict['col'] = col_names.index(where_dict['key'])
+
+            with open(tbl_path, 'r') as table_file:
+                table_file.seek(0)  # make sure we're at beginning of file
+                tbl_reader = csv.reader(table_file)
+                row_num = 0
+                for row in tbl_reader:
+                    if row_num == 0 or not query_has_where_clause:
+                        # if we are on the header row, or there is no WHERE clause
+                        # then we don't need to do any conditional checking -- just
+                        # select the request columns
+                        row_copy = [row[i] for i in cols_to_select]
+                        print(' | '.join(row_copy))
+                    else:
+                        # we are on row data and we have a WHERE clause, so use
+                        # the data from the WHERE clause (in where_dict), the columns
+                        # to check the condition on, and apply the right validator
+                        # function based on the operator.
+                        new_row = row.copy()
+                        col = where_dict['col']
+                        validator = cond_func(where_dict['operator'])
+                        cast_func = model[col]['cast']
+                        lhs = cast_func(row[col])
+                        rhs = cast_func(where_dict['value'])
+                        if validator(lhs, rhs):  # if WHERE condition applies
+                            row_copy = [row[i] for i in cols_to_select]
+                            print(' | '.join(row_copy))
+                    row_num += 1
+                table_file.close()
         else:
             print('!Failed to query table %s because it does not exist.' % tbl_name)
 
     except AttributeError:
         print('Error: syntax error')
+
+
+def insert(query_string):
+    """
+    Initiates an INSERT command
+
+    query_string -- the remaining query after the INSERT keyword
+    """
+    global DB_DIR, active_database
+
+    insert_regex = re.compile('^INTO +([a-zA-Z0-9_-]+) +VALUES *\((.*)\)$', re.I)
+    groups = insert_regex.match(query_string).groups()
+    tbl_name = groups[0].lower()
+    values_str = groups[1]
+    # strip all single & double quotes and split on ','
+    values_lst = re.sub(r'[\'"]', '', values_str).split(',')
+    values_lst = [el.strip() for el in values_lst]  # strip surrounding whitespace
+    tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
+    if os.path.exists(tbl_path):
+        with open(tbl_path, 'a+') as table_file:
+            line = ','.join(values_lst)  # rejoin value list as comma-delimited list
+            table_file.write('\n%s' % line)  # append the line as a new row in the file
+            print('1 new record inserted.')
+            table_file.close()
+    else:
+        print('!Failed to query table %s because it does not exist.' % tbl_name)
+
+
+def update(query_string):
+    """
+    Initiates an UPDATE command
+
+    query_string -- the remaining query after the UPDATE keyword
+    """
+    global DB_DIR, active_database
+
+    update_regex = re.compile("^([a-zA-Z0-9_-]+) +SET +(.*) +WHERE +(.*)$", re.I)
+    groups = update_regex.match(query_string).groups()
+    tbl_name = groups[0].lower()
+    kv_pairs_str = groups[1]
+    condition_str = groups[2]
+    set_dicts = parse_kv_pair_str(kv_pairs_str)
+    where_dict = parse_where_clause(condition_str)
+    count = 0  # for holding the number of records affected
+    tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
+    if os.path.exists(tbl_path):
+        new_rows = []
+
+        # Read the header to determine the table model for casting values to the
+        # appropriate data type
+        header = read_header_from(tbl_name)
+        model = extract_model_from(header)
+
+        # Extract just the column names from the model
+        col_names = [item['col_name'] for item in model]
+
+        # Using the key/value pairs given in the SET clause, find the column
+        # numbers they correspond to and add them to each dictionary
+        for idx, dict in enumerate(set_dicts):
+            set_dicts[idx]['col'] = None
+            if dict['key'] in col_names:
+                set_dicts[idx]['col'] = col_names.index(dict['key'])
+
+        # Using the key from the key/operator/value group from the WHERE clause
+        # of the query, find the column it relates to and add it
+        where_dict['col'] = None
+        if where_dict['key'] in col_names:
+            where_dict['col'] = col_names.index(where_dict['key'])
+
+        # Update the rows which match the WHERE clause and columns defined by
+        # SET clause of the query.
+        with open(tbl_path, 'r') as table_file:
+            table_file.seek(0)  # make sure we're at beginning of file
+            tbl_reader = csv.reader(table_file)
+            row_num = 0
+            for row in tbl_reader:
+                if row_num == 0:  # header row
+                    new_rows.append(row.copy())
+                else:
+                    new_row = row.copy()
+                    col = where_dict['col']
+                    # The operator in the WHERE clause determines the validator func to use
+                    validator = cond_func(where_dict['operator'])
+                    cast_func = model[col]['cast']
+                    lhs = cast_func(row[col])
+                    rhs = cast_func(where_dict['value'])
+                    if validator(lhs, rhs):  # if WHERE condition applies
+                        count += 1
+                        for dict in set_dicts:
+                            new_row[dict['col']] = dict['value']
+                    new_rows.append(new_row)
+                row_num += 1
+            table_file.close()
+
+        # Overwrite the file with the updated rows
+        with open(tbl_path, 'w') as table_file:
+            table_writer = csv.writer(table_file)
+            for row in new_rows:
+                table_writer.writerow(row)
+            table_file.close()
+        print('%i records modified.' % count)
+    else:
+        print('!Failed to query table %s because it does not exist.' % tbl_name)
+
+
+def delete(query_string):
+    """
+    Initiates a DELETE command
+
+    :param query_string: the remaining query after the DELETE keyword
+    """
+    global DB_DIR, active_database
+
+    delete_regex = re.compile('^FROM ([a-z0-9_-]+) WHERE (.+)$', re.I)
+    groups = delete_regex.match(query_string).groups()
+    tbl_name = groups[0].lower()
+    where_clause = groups[1]
+    where_dict = parse_where_clause(where_clause)
+    count = 0  # for holding the number of records affected
+    tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
+
+    if os.path.exists(tbl_path):
+        new_rows = []
+
+        # Read the header to determine the table model for casting values to the
+        # appropriate data type
+        header = read_header_from(tbl_name)
+        model = extract_model_from(header)
+
+        # Extract just the column names from the model
+        col_names = [item['col_name'] for item in model]
+
+        # Using the key from the key/operator/value group from the WHERE clause
+        # of the query, find the column it relates to and add it
+        where_dict['col'] = None
+        if where_dict['key'] in col_names:
+            where_dict['col'] = col_names.index(where_dict['key'])
+
+        # Only keep the rows which don't match the WHERE clause
+        with open(tbl_path, 'r') as table_file:
+            table_file.seek(0)  # make sure we're at beginning of file
+            tbl_reader = csv.reader(table_file)
+            row_num = 0
+            for row in tbl_reader:
+                if row_num == 0:  # header row
+                    new_rows.append(row.copy())
+                else:
+                    new_row = row.copy()
+                    col = where_dict['col']
+                    validator = cond_func(where_dict['operator'])
+                    cast_func = model[int(col)]['cast']
+                    lhs = cast_func(row[col])
+                    rhs = cast_func(where_dict['value'])
+                    
+                    # Only keep rows which don't meed the WHERE condition
+                    if validator(lhs, rhs) is False:
+                        new_rows.append(new_row)
+                    else:
+                        count += 1
+                row_num += 1
+            table_file.close()
+
+        # Overwrite the file with the new subset of rows
+        with open(tbl_path, 'w') as table_file:
+            table_writer = csv.writer(table_file)
+            for row in new_rows:
+                table_writer.writerow(row)
+            table_file.close()
+        print('%i records deleted.' % count)
+    else:
+        print('!Failed to query table %s because it does not exist.' % tbl_name)
 
 
 def alter(query_string):
@@ -224,7 +579,8 @@ def alter_table_add_column(tbl_path, column):
     column -- The column to add to the table
     """
     with open(tbl_path, 'a') as table_file:
-        table_file.write(' | %s' % column)  # append the column to the file header
+        table_file.write(',%s' % column)  # append the column to the file header
+        table_file.close()
 
 
 def create_database(db_name):
@@ -253,7 +609,7 @@ def create_table(query_string):
 
     table_regex = re.compile('^([a-z0-9_-]+) *\((.*)\)$', re.I)
     groups = table_regex.match(query_string).groups()
-    tbl_name = groups[0]
+    tbl_name = groups[0].lower()
 
     try:
         # get the path to the active database
@@ -263,9 +619,10 @@ def create_table(query_string):
         schema = groups[1]  # store the schema (i.e. the columns and their data types)
         col_list = schema.split(',')  # split string up by column
         col_list = [col.strip() for col in col_list]  # strip surrounding whitespace
-        col_str = join_l(col_list, ' | ')  # join list into string with sep " | "
-        with open(tbl_path, 'w') as tbl_file:
-            tbl_file.write(col_str)  # write the first line as the columns of the table
+        col_str = join_l(col_list, ',')  # join list into string with sep ","
+        with open(tbl_path, 'w') as table_file:
+            table_file.write(col_str)  # write the first line as the columns of the table
+            table_file.close()
 
         print('Table %s created.' % tbl_name)
     except OSError:
@@ -322,7 +679,10 @@ query_commands = {
     'drop': drop,
     'use': use,
     'select': select,
-    'alter': alter
+    'alter': alter,
+    'insert': insert,
+    'update': update,
+    'delete': delete
 }
 
 # Program start
