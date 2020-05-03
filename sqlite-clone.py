@@ -396,6 +396,8 @@ def select_2(query_string):
         for row in tbl_reader:
             left_table.append(row)
 
+    left_table_header = left_table[0]
+
     if from_dict['right_table'] is not None and from_dict['right_table']['name'] is not None:
         right_table_name = from_dict['right_table']['name'].lower()
         right_table_header = read_header_from(right_table_name)
@@ -407,54 +409,22 @@ def select_2(query_string):
             tbl_reader = csv.reader(table_file)
             for row in tbl_reader:
                 right_table.append(row)
-
-    # - create new table from cartesian product of both tables
-    cartesian_table = []
-    if from_dict['right_table'] is None:
-        cartesian_table = left_table
-    else:
-        left_table_header = left_table[0]
         right_table_header = right_table[0]
-        new_header = left_table_header + right_table_header
-        cartesian_table.append(new_header)
-        for l_row in left_table[1:]:
-            for r_row in right_table[1:]:
-                new_row = l_row + r_row
-                cartesian_table.append(new_row)
 
     # W: WHERE clause (or ON)
     # - Filter tuples of cartesian product table by those which meet the
     #   condition indicated by the WHERE/ON clause
 
-    table_header = cartesian_table[0]
-    col_names = [
-        item.split(' ')[0]
-        for item in table_header
-    ]
+    filtered_table = left_table
 
-    # {'key': 'id', 'key_alias': 'E', 'operator': '=', 'value': 'employeeID', 'value_alias': 'S'}
     if query_has_where_clause:
         where_dict = parse_where_clause(where_clause)
         comparator = cond_func(where_dict['operator'])
-        lhs_col_idx = col_names.index(where_dict['key'])
-        rhs_col_idx = None
-        if where_dict['value_alias'] is not None:
-            rhs_col_idx = col_names.index(where_dict['value'])
-
+        l_colnames = [item.split(' ')[0] for item in left_table_header]
         filtered_table = []
 
-        if from_dict['join_strategy'] != 'left outer join':
-            filtered_table.append(cartesian_table[0])
-            for row in cartesian_table[1:]:
-                lhs_value = row[lhs_col_idx]
-                rhs_value = where_dict['value']
-                if rhs_col_idx is not None:
-                    rhs_value = row[rhs_col_idx]
-                if comparator(lhs_value, rhs_value):
-                    filtered_table.append(row)
-        else:
+        if from_dict['right_table'] is not None:
             filtered_table.append(left_table_header + right_table_header)
-            l_colnames = [item.split(' ')[0] for item in left_table_header]
             r_colnames = [item.split(' ')[0] for item in right_table_header]
             lhs_col_idx = l_colnames.index(where_dict['key'])
             rhs_col_idx = None
@@ -470,14 +440,19 @@ def select_2(query_string):
                     if comparator(lhs_value, rhs_value):
                         filtered_table.append(l_row + r_row)
                         found = True
-                if found is False:
+                if from_dict['join_strategy'] == 'left outer join' and found is False:
                     filtered_table.append(l_row + ['' for i in range(len(r_colnames))])
-
-    else:
-        filtered_table = cartesian_table
+        else:
+            lhs_col_idx = l_colnames.index(where_dict['key'])
+            for row in left_table:
+                lhs_value = row[lhs_col_idx]
+                rhs_value = where_dict['value']
+                if comparator(lhs_value, rhs_value):
+                    filtered_table.append(row)
 
     # S: SELECT clause
     # - Filter columns of preceding result by those indicated in SELECT clause
+    col_names = [item.split(' ')[0] for item in filtered_table[0]]
     cols_to_select = [c.strip() for c in select_clause.split(',')]
     if cols_to_select[0] is '*':
         # select all columns
