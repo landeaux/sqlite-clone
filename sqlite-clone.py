@@ -79,11 +79,99 @@ def parse_where_clause(clause):
     """
     where_regex = re.compile('^(.*) +(=|>|<|>=|<=|<>|!=|LIKE|IN|BETWEEN) +(.*)$', re.I)
     groups = where_regex.match(clause).groups()
+    lhs = groups[0]
+    operator = groups[1]
+    rhs = groups[2]
+
+    lhs_split = lhs.split('.')
+    if len(lhs_split) is 1:
+        key = lhs_split[0]
+        key_alias = None
+    else:
+        key = lhs_split[1]
+        key_alias = lhs_split[0]
+
+    rhs_split = rhs.split('.')
+    if len(rhs_split) is 1:
+        value = rhs_split[0]
+        value_alias = None
+    else:
+        value = rhs_split[1]
+        value_alias = rhs_split[0]
+
     return {
-        'key': groups[0],
+        'key': key,
+        'key_alias': key_alias,
         'operator': groups[1],
-        'value': re.sub('[\'"]', '', groups[2])  # strip away all quotes
+        'value': re.sub('[\'"]', '', value),  # strip away all quotes
+        'value_alias': value_alias,
     }
+
+
+def parse_from_clause(clause):
+    """
+    Parses the FROM clause in a query string into a dictionary of the form:
+
+    ```python
+    parsed_dict = {
+        'left_table': {
+            'name': 'Table1',
+            'alias': None | 'A'
+        },
+        'right_table': None | {
+            'name': Table2,
+            'alias': B
+        },
+        'join_strategy': None | 'inner join' | 'left outer join'
+    }
+    ```
+
+    :param clause: The portion of the query relating to the FROM clause
+    :return The dictionary representing the parsed FROM clause
+    """
+    from_regex = re.compile(
+        # match just a table name
+        '^(([a-z]+)|'
+        # match Table1 A, Table2 B
+        '([a-z]+) ([a-z]), ([a-z]+) ([a-z])|'
+        # match Table1 A (inner join|left outer join) Table2 B
+        '([a-z]+) ([a-z]) (inner join|left outer join) ([a-z]+) ([a-z]))$',
+        re.I
+    )
+    groups = from_regex.match(clause).groups()
+    groups_arr = [group for group in groups]
+    parsed = list(filter(lambda g: g is not None, groups_arr))[1:]
+    parsed_dict = {
+        'left_table': None,
+        'right_table': None,
+        'join_strategy': None
+    }
+    if len(parsed) is 1:
+        parsed_dict['left_table'] = {
+            'name': parsed[0],
+            'alias': None,
+        }
+    elif len(parsed) is 4:
+        parsed_dict['left_table'] = {
+            'name': parsed[0],
+            'alias': parsed[1]
+        }
+        parsed_dict['right_table'] = {
+            'name': parsed[2],
+            'alias': parsed[3]
+        }
+        parsed_dict['join_strategy'] = 'inner join'
+    elif len(parsed) is 5:
+        parsed_dict['left_table'] = {
+            'name': parsed[0],
+            'alias': parsed[1]
+        }
+        parsed_dict['right_table'] = {
+            'name': parsed[3],
+            'alias': parsed[4]
+        }
+        parsed_dict['join_strategy'] = parsed[2]
+    return parsed_dict
 
 
 def read_header_from(table):
@@ -274,6 +362,115 @@ def use(query_string):
         print('Error: syntax error')
 
 
+def select_2(query_string):
+    global DB_DIR, active_database
+
+    # PARSE:
+    # - parse query_string into three groups: from, where, and select
+    select_regex = re.compile(
+        '^([a-z0-9_*, -]+) +FROM +([a-z0-9 _,-]+) *(?:(?:WHERE|ON) +(.+))?$',
+        re.I
+    )
+    groups = select_regex.match(query_string).groups()
+    select_clause = groups[0].strip()
+    from_clause = groups[1].strip()
+    where_clause = groups[2]
+    query_has_where_clause = where_clause is not None
+    if query_has_where_clause:
+        where_clause = where_clause.strip()
+
+    # F: FROM clause
+    # - parse FROM clause to determine which tables to get, their aliases, and
+    #   the join strategy
+    from_dict = parse_from_clause(from_clause)
+
+    # - get each table and store in a 2D list
+    left_table_name = from_dict['left_table']['name'].lower()
+    left_table_header = read_header_from(left_table_name)
+    left_table_model = extract_model_from(left_table_header)
+    left_table = []
+    tbl_path = os.path.join(DB_DIR, active_database, left_table_name)
+    with open(tbl_path, 'r') as table_file:
+        table_file.seek(0)  # make sure we're at beginning of file
+        tbl_reader = csv.reader(table_file)
+        for row in tbl_reader:
+            left_table.append(row)
+
+    if from_dict['right_table'] is not None and from_dict['right_table']['name'] is not None:
+        right_table_name = from_dict['right_table']['name'].lower()
+        right_table_header = read_header_from(right_table_name)
+        right_table_model = extract_model_from(right_table_header)
+        right_table = []
+        tbl_path = os.path.join(DB_DIR, active_database, right_table_name)
+        with open(tbl_path, 'r') as table_file:
+            table_file.seek(0)  # make sure we're at beginning of file
+            tbl_reader = csv.reader(table_file)
+            for row in tbl_reader:
+                right_table.append(row)
+
+    # - create new table from cartesian product of both tables
+    cartesian_table = []
+    if from_dict['right_table'] is None:
+        cartesian_table = left_table
+    else:
+        left_table_header = left_table[0]
+        right_table_header = right_table[0]
+        new_header = left_table_header + right_table_header
+        cartesian_table.append(new_header)
+        for l_row in left_table[1:]:
+            for r_row in right_table[1:]:
+                new_row = l_row + r_row
+                cartesian_table.append(new_row)
+
+    # W: WHERE clause (or ON)
+    # - Filter tuples of cartesian product table by those which meet the
+    #   condition indicated by the WHERE/ON clause
+
+    table_header = cartesian_table[0]
+    col_names = [
+        item.split(' ')[0]
+        for item in table_header
+    ]
+
+    # {'key': 'id', 'key_alias': 'E', 'operator': '=', 'value': 'employeeID', 'value_alias': 'S'}
+    if query_has_where_clause:
+        where_dict = parse_where_clause(where_clause)
+        comparator = cond_func(where_dict['operator'])
+        lhs_col_idx = col_names.index(where_dict['key'])
+        rhs_col_idx = None
+        if where_dict['value_alias'] is not None:
+            rhs_col_idx = col_names.index(where_dict['value'])
+
+        filtered_table = []
+        filtered_table.append(cartesian_table[0])
+        for row in cartesian_table[1:]:
+            lhs_value = row[lhs_col_idx]
+            rhs_value = where_dict['value']
+            if rhs_col_idx is not None:
+                rhs_value = row[rhs_col_idx]
+            if comparator(lhs_value, rhs_value):
+                filtered_table.append(row)
+    else:
+        filtered_table = cartesian_table
+
+    # S: SELECT clause
+    # - Filter columns of preceding result by those indicated in SELECT clause
+    cols_to_select = [c.strip() for c in select_clause.split(',')]
+    if cols_to_select[0] is '*':
+        # select all columns
+        cols_to_select = col_names
+
+    c_idx_to_select = [col_names.index(c) for c in cols_to_select]
+
+    final_table = filtered_table
+    for r_idx in range(len(filtered_table)):
+        curr_row = filtered_table[r_idx]
+        new_row = [curr_row[c_idx] for c_idx in c_idx_to_select]
+        final_table[r_idx] = new_row
+
+    print(final_table)
+
+
 def select(query_string):
     """
     Initiates a SELECT command
@@ -282,16 +479,24 @@ def select(query_string):
     """
     global DB_DIR, active_database
 
-    select_regex = re.compile('^([a-z0-9_*, -]+) +FROM +([a-z0-9_-]+)( +WHERE +(.+))?$', re.I)
+    select_regex = re.compile(
+        '^([a-z0-9_*, -]+)'  # The portion immediately after SELECT (e.g. '*')
+        ' +FROM +([a-z0-9 _,-]+)'  # The FROM clause
+        ' *(?:(?:WHERE|ON) +(.+))?',  # The WHERE clause
+        re.I
+    )
 
     try:
         groups = select_regex.match(query_string).groups()
+        select_clause = groups[0]
+        from_clause = groups[1]
+        where_clause = groups[2]
         columns = [col.strip() for col in groups[0].split(',')]
         tbl_name = groups[1].strip().lower()  # grab table name and convert to lowercase
-        query_has_where_clause = groups[2] is not None and groups[3] is not None
+        query_has_where_clause = where_clause is not None
         where_dict = {}
         if query_has_where_clause:
-            where_dict = parse_where_clause(groups[3])
+            where_dict = parse_where_clause(groups[2])
 
         tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
 
@@ -678,7 +883,7 @@ query_commands = {
     'create': create,
     'drop': drop,
     'use': use,
-    'select': select,
+    'select': select_2,
     'alter': alter,
     'insert': insert,
     'update': update,
