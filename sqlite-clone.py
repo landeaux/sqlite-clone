@@ -442,14 +442,37 @@ def select_2(query_string):
             rhs_col_idx = col_names.index(where_dict['value'])
 
         filtered_table = []
-        filtered_table.append(cartesian_table[0])
-        for row in cartesian_table[1:]:
-            lhs_value = row[lhs_col_idx]
-            rhs_value = where_dict['value']
-            if rhs_col_idx is not None:
-                rhs_value = row[rhs_col_idx]
-            if comparator(lhs_value, rhs_value):
-                filtered_table.append(row)
+
+        if from_dict['join_strategy'] != 'left outer join':
+            filtered_table.append(cartesian_table[0])
+            for row in cartesian_table[1:]:
+                lhs_value = row[lhs_col_idx]
+                rhs_value = where_dict['value']
+                if rhs_col_idx is not None:
+                    rhs_value = row[rhs_col_idx]
+                if comparator(lhs_value, rhs_value):
+                    filtered_table.append(row)
+        else:
+            filtered_table.append(left_table_header + right_table_header)
+            l_colnames = [item.split(' ')[0] for item in left_table_header]
+            r_colnames = [item.split(' ')[0] for item in right_table_header]
+            lhs_col_idx = l_colnames.index(where_dict['key'])
+            rhs_col_idx = None
+            if where_dict['value_alias'] is not None:
+                rhs_col_idx = r_colnames.index(where_dict['value'])
+            for l_row in left_table[1:]:
+                lhs_value = l_row[lhs_col_idx]
+                rhs_value = where_dict['value']
+                found = False
+                for r_row in right_table[1:]:
+                    if rhs_col_idx is not None:
+                        rhs_value = r_row[rhs_col_idx]
+                    if comparator(lhs_value, rhs_value):
+                        filtered_table.append(l_row + r_row)
+                        found = True
+                if found is False:
+                    filtered_table.append(l_row + ['' for i in range(len(r_colnames))])
+
     else:
         filtered_table = cartesian_table
 
