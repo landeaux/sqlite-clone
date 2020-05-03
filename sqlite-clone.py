@@ -362,7 +362,7 @@ def use(query_string):
         print('Error: syntax error')
 
 
-def select_2(query_string):
+def select(query_string):
     global DB_DIR, active_database
 
     # PARSE:
@@ -466,91 +466,8 @@ def select_2(query_string):
         new_row = [curr_row[c_idx] for c_idx in c_idx_to_select]
         final_table[r_idx] = new_row
 
-    print(final_table)
-
-
-def select(query_string):
-    """
-    Initiates a SELECT command
-
-    query_string -- the remaining query after the SELECT keyword
-    """
-    global DB_DIR, active_database
-
-    select_regex = re.compile(
-        '^([a-z0-9_*, -]+)'  # The portion immediately after SELECT (e.g. '*')
-        ' +FROM +([a-z0-9 _,-]+)'  # The FROM clause
-        ' *(?:(?:WHERE|ON) +(.+))?',  # The WHERE clause
-        re.I
-    )
-
-    try:
-        groups = select_regex.match(query_string).groups()
-        select_clause = groups[0]
-        from_clause = groups[1]
-        where_clause = groups[2]
-        columns = [col.strip() for col in groups[0].split(',')]
-        tbl_name = groups[1].strip().lower()  # grab table name and convert to lowercase
-        query_has_where_clause = where_clause is not None
-        where_dict = {}
-        if query_has_where_clause:
-            where_dict = parse_where_clause(groups[2])
-
-        tbl_path = os.path.join(DB_DIR, active_database, tbl_name)
-
-        if os.path.exists(tbl_path):
-            header = read_header_from(tbl_name)
-            model = extract_model_from(header)
-            col_names = [item['col_name'] for item in model]  # extract just the column names
-            cols_to_select = []
-
-            # figure out what column numbers to select given the query and the table model
-            if columns[0] is not '*':  # if not selecting all columns
-                for col_name in columns:
-                    if col_name in col_names:
-                        cols_to_select.append(col_names.index(col_name))
-            else:  # select all columns
-                cols_to_select = list(range(0, len(model)))
-
-            # Using the key from the key/operator/value group from the WHERE clause
-            # of the query, find the column it relates to and add it
-            if query_has_where_clause:
-                where_dict['col'] = None
-                if where_dict['key'] in col_names:
-                    where_dict['col'] = col_names.index(where_dict['key'])
-
-            with open(tbl_path, 'r') as table_file:
-                table_file.seek(0)  # make sure we're at beginning of file
-                tbl_reader = csv.reader(table_file)
-                row_num = 0
-                for row in tbl_reader:
-                    if row_num == 0 or not query_has_where_clause:
-                        # if we are on the header row, or there is no WHERE clause
-                        # then we don't need to do any conditional checking -- just
-                        # select the request columns
-                        row_copy = [row[i] for i in cols_to_select]
-                        print(' | '.join(row_copy))
-                    else:
-                        # we are on row data and we have a WHERE clause, so use
-                        # the data from the WHERE clause (in where_dict), the columns
-                        # to check the condition on, and apply the right validator
-                        # function based on the operator.
-                        new_row = row.copy()
-                        col = where_dict['col']
-                        validator = cond_func(where_dict['operator'])
-                        cast_func = model[col]['cast']
-                        lhs = cast_func(row[col])
-                        rhs = cast_func(where_dict['value'])
-                        if validator(lhs, rhs):  # if WHERE condition applies
-                            row_copy = [row[i] for i in cols_to_select]
-                            print(' | '.join(row_copy))
-                    row_num += 1
-                table_file.close()
-        else:
-            print('!Failed to query table %s because it does not exist.' % tbl_name)
-
-    except AttributeError:
-        print('Error: syntax error')
+    for row in final_table:
+        print('|'.join(row))
 
 
 def insert(query_string):
@@ -881,7 +798,7 @@ query_commands = {
     'create': create,
     'drop': drop,
     'use': use,
-    'select': select_2,
+    'select': select,
     'alter': alter,
     'insert': insert,
     'update': update,
