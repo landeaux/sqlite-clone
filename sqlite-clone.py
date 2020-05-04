@@ -131,11 +131,11 @@ def parse_from_clause(clause):
     """
     from_regex = re.compile(
         # match just a table name
-        '^(([a-z]+)|'
+        '^(([a-z0-9_-]+)|'
         # match Table1 A, Table2 B
-        '([a-z]+) ([a-z]), ([a-z]+) ([a-z])|'
+        '([a-z0-9_-]+) ([a-z]), ([a-z0-9_-]+) ([a-z])|'
         # match Table1 A (inner join|left outer join) Table2 B
-        '([a-z]+) ([a-z]) (inner join|left outer join) ([a-z]+) ([a-z]))$',
+        '([a-z0-9_-]+) ([a-z]) (inner join|left outer join) ([a-z0-9_-]+) ([a-z]))$',
         re.I
     )
     groups = from_regex.match(clause).groups()
@@ -200,7 +200,7 @@ def read_header_from(table):
                 print('ERROR: table header is empty!')
             table_file.close()
             return header
-    print('Error: Table "%s" doesn\'t exist!' % table)
+    print('!Failed to query table %s because it does not exist.' % table)
     return ''
 
 
