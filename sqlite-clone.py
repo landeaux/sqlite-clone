@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 
-# Programming Assignment 2 - Data Manipulation
+# Programming Assignment 3 - Table Joins
 #
 # Author: Adam Landis
-# Date: 03/12/2020
+# Date: 05/03/2020
 # History:
+# - 05/03/2020 -- Completed implementation of table joins (implicit/explicit
+#                 inner join, left outer join).
+# - 03/12/2020 -- Completed implementation of all data manipulation
+#                 functionality.
 # - 02/20/2020 -- Completed implementation of all metadata functionality (e.g.
-#   creating and dropping databases and tables, using, altering, and querying
-#   tables, etc.)
+#                 creating and dropping databases and tables, using, altering,
+#                 and querying tables, etc.)
 
 import os  # for writing directories and files
 import shutil  # for writing directories and files
