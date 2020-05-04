@@ -363,6 +363,11 @@ def use(query_string):
 
 
 def select(query_string):
+    """
+    Initiates a SELECT command
+
+    :param query_string: the remaining query after the SELECT keyword
+    """
     global DB_DIR, active_database
 
     # PARSE:
@@ -412,37 +417,60 @@ def select(query_string):
         right_table_header = right_table[0]
 
     # W: WHERE clause (or ON)
-    # - Filter tuples of cartesian product table by those which meet the
-    #   condition indicated by the WHERE/ON clause
+    # - Join tables based on the join strategy (if there are two tables) and
+    #   filter the rows by the condition indicated by the WHERE (or ON) clause
 
     filtered_table = left_table
 
     if query_has_where_clause:
         where_dict = parse_where_clause(where_clause)
+
+        # get the comparator function given the operator in the WHERE clause
         comparator = cond_func(where_dict['operator'])
         l_colnames = [item.split(' ')[0] for item in left_table_header]
         filtered_table = []
 
+        # if we are joining two tables, let's join them, but only those rows
+        # which match our condition
         if from_dict['right_table'] is not None:
+            # add the new header row as the concatenation of the left and right
             filtered_table.append(left_table_header + right_table_header)
+
             r_colnames = [item.split(' ')[0] for item in right_table_header]
+
+            # grab the column indices that the left hand side and right hand
+            # side each correspond to in the WHERE condition
             lhs_col_idx = l_colnames.index(where_dict['key'])
-            rhs_col_idx = None
+            rhs_col_idx = None # start with None, because rhs might be a value
+
             if where_dict['value_alias'] is not None:
+                # we have an alias for the rhs. grab the column index.
                 rhs_col_idx = r_colnames.index(where_dict['value'])
+
+            # join the left table rows with the right table rows, given the
+            # WHERE condition is satisfied
             for l_row in left_table[1:]:
+                # get the values to use for when we compare them later
                 lhs_value = l_row[lhs_col_idx]
                 rhs_value = where_dict['value']
+
+                # to indicate if we found a row in the right table which passes
                 found = False
+
                 for r_row in right_table[1:]:
                     if rhs_col_idx is not None:
-                        rhs_value = r_row[rhs_col_idx]
+                        rhs_value = r_row[rhs_col_idx]  # get the actual value
+
+                    # check if WHERE condition passes
                     if comparator(lhs_value, rhs_value):
-                        filtered_table.append(l_row + r_row)
+                        filtered_table.append(l_row + r_row)  # join the rows
                         found = True
+
                 if from_dict['join_strategy'] == 'left outer join' and found is False:
+                    # for left outer join, append a row with blanks for right row
                     filtered_table.append(l_row + ['' for i in range(len(r_colnames))])
         else:
+            # we only have one table to work with. filter table by WHERE condition
             lhs_col_idx = l_colnames.index(where_dict['key'])
             for row in left_table:
                 lhs_value = row[lhs_col_idx]
@@ -458,14 +486,17 @@ def select(query_string):
         # select all columns
         cols_to_select = col_names
 
+    # determine the column indices to select from the table
     c_idx_to_select = [col_names.index(c) for c in cols_to_select]
 
+    # slice the table based on the indices we found
     final_table = filtered_table
     for r_idx in range(len(filtered_table)):
         curr_row = filtered_table[r_idx]
         new_row = [curr_row[c_idx] for c_idx in c_idx_to_select]
         final_table[r_idx] = new_row
 
+    # join the rows of the table into a string with '|' delimiter for printing
     for row in final_table:
         print('|'.join(row))
 
